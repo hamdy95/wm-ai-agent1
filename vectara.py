@@ -11,9 +11,9 @@ import base64
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-VECTARA_API_KEY = os.getenv('VECTARA_API_KEY')
-clarifai_pat = os.getenv("CLARIFAI_PAT")
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+VECTARA_API_KEY = os.environ.get('VECTARA_API_KEY')
+clarifai_pat = os.environ.get("CLARIFAI_PAT")
 
 def summarize_text(text_content):
     """
