@@ -5,12 +5,15 @@ from langchain.vectorstores import Vectara  # From Langchain project
 from langchain.llms import OpenAI  # From Langchain project
 from langchain.chains import RetrievalQA  # From Langchain project
 import os
+from dotenv import load_dotenv  # From both projects (if used)
 from clarifai.client.model import Model  # From Clarifai project
 import base64
 
+load_dotenv()
 
-
-
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+VECTARA_API_KEY = os.getenv('VECTARA_API_KEY')
+clarifai_pat = os.getenv("CLARIFAI_PAT")
 
 def summarize_text(text_content):
     """
