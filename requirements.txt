@@ -1,3 +1,5 @@
 streamlit
 clarifai
 langchain
+dotenv
+base64
