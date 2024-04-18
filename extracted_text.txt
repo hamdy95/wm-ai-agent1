@@ -1,0 +1,194 @@
+Kentucky Pesticide Education Program
+copyright © 2016 University of Kentucky Department of Entomology
+Agricultural Plant Diseases
+Plant Diseases
+A plant disease is any harmful condition that affects a plant’s appearance or function. Common pathogens that cause diseases include: fungi, 
+bacteria, and viruses. Some nematodes are plant disease agents. Temperature extremes or nutrient deficiencies are examples of disorders caused by 
+non-infectious factors.
+The disease triangle is a fundamental concept in plant pathology. Disease occurs only when all three sides of the triangle are present: a susceptible 
+host, apathogen (the agent that causes disease), and an environment favorable for disease to develop. Plant diseases are managed by manipulating 
+the disease triangle: the plant, the pathogen, and/or the environment.
+Infection begins when the pathogen enters the plant. The disease process starts when it arrives at a part of a plant where infection can occur. If 
+environmental conditions are favorable, the pathogen begins to develop. The plant is diseased when it responds.
+Plants respond to disease in 3 main ways:
+1. overdevelopment of tissue - galls, swellings, or leaf curls;
+2. underdevelopment of tissue - stunting, lack of chlorophyll, or incomplete development of organs; or
+3. tissue death - blight, leaf spot, wilting, and cankers.
+Plant disease pathogens may be spread in many ways:
+ by wind;
+ rain;
+ animals;
+ soil;
+ nursery grafts;
+ vegetative propagation;
+ contaminated equipment and tools;
+ infected seed stock;
+ pollen;
+ dust storms;
+ irrigation water; and
+ people.
+Infectious Organisms that Cause Diseases
+Fungi are the most common infectious organisms causing plant disease. They do not have chlorophyll so they cannot make their own food. They must 
+get it by living on another organism.
+Most fungi are beneficial. They contribute to soil fertility by releasing nutrients from dead plants or animals. Those that cause plant diseases are 
+parasites on living plants. They may attack plants and plant products both above and below ground. Some fungal pathogens attack many plant 
+species; others have to only one host species.
+Most fungi reproduce by spores, which function like seeds. Fungus spores are often microscopic and are produced in 
+tremendous numbers. Often spores can survive for weeks, months, or even years without a host plant. Excessive water or high humidity is nearly 
+always needed for spore germination and active fungal growth.
+Spores can spread from plant to plant and crop to crop through wind, rain, irrigation water, insects, and by people through infected clothing and 
+equipment.
+Fungal infections frequently are identified by the vegetative body of the fungus (mycelium) and the fruiting bodies that produce the spores. Often, 
+they are large enough to see.
+Symptoms of fungal infections include
+ soft rot of fruits,
+ plant stunting,
+ smuts,
+ rusts,
+ leaf spots,
+ wilting, or
+ thickening and curling of leaves.
+Powdery and downy mildew, smut, root and stem rots, and sooty and slime molds are examples of fungus diseases.
+Bacteria are single-celled organisms that usually reproduce by simple cell division. Some divide as often as every 30 minutes. They can build up 
+quickly under warm, humid weather conditions. Leaf, growing shoots, and fruit diseases are the most common types in Kentucky.
+Bacteria can be carried from plant to plant in water droplets, by wind, rain splash, insects, or on equipment. They often survive between growing 
+seasons in crop residue, in seeds or cuttings, or in weeds.
+Leaf Diseases Caused By Fungi and Bacteria
+Leaf Spots
+Bacteria or fungi can cause leaf spots that vary in size, shape, and color. Usually the spot has a distinct margin and may be surrounded by a yellow 
+halo. A fungal leaf spot nearly always has a growth of some type in the spot, particularly in damp weather. It may be a tiny pimple-like structure or a 
+moldy growth of spores. Often the structures are visible through a hand lens. Nearby diseased areas may join to form irregular "blotches."
+photo: Paul Bachi, University of Kentucky Research and Education Center, Bugwood.org
+Septoria brown spot is a common fungal disease of soybeans. It causes small angular red-brown spots to develop on upper and lower surfaces of 
+trifoliate leaves 2 to 3 weeks after planting. Numerous spots will cause leaves to yellow and drop. The disease will develop many irregular, tan lesions 
+on trifoliate leaves that later turn dark brown. Individual spots will frequently coalesce to form large blackish-brown blotches.
+Defoliation from the bottom to the top of severely diseased trifoliate leaves is common during wet seasons. Early season brown spot will appear 
+annually in almost every field in Kentucky. Late-season brown spot is much more variable in occurrence and severity.
+The fungus survives from season to season in crop debris and seed. Warm, moist weather promotes the sporulation of the fungus; the spores are
+spread by wind and rain. Hot, dry weather can stop disease development.
+Leaf Blights
+Leaf blights generally affect larger leaf areas and are more irregular than leaf spots.
+photo: Margaret McGrath, Cornell University, Bugwood.org
+Northern corn leaf blight (NCLB), caused by a fungus, first develops on the lower leaves of corn plants that are from waist to shoulder high. The 
+telltale sign of northern corn leaf blight is the 1-to-6 inch long cigar-shaped gray-green to tan-colored lesions on the lower leaves. As the disease 
+develops, the lesions spread to all leafy structures.
+Wet weather and moderate temperatures favor NCLB. Symptoms can be confused with bacterial wilt, especially late in the season.
+NCLB will be more severe in fields with corn following corn under reduced tillage. Other hosts include sorghum, Johnsongrass, and some other 
+grass species. The pathogen overwinters in plant debris and is transferred by wind to new plants.Severe yield loss can occur when leaves become 
+blighted during early grain fill.
+Rusts
+Rust fungi often produce bright yellow, orange-red, reddish-brown or black "pustules". The pustules are usually raised above the leaf surface. Rust can 
+be rubbed off the leaf surface.
+photo: Donald Groth, Louisiana State University AgCenter, Bugwood.org
+Wheat leaf rust first appears as small yellow flecks on the upper leaf surface which turn to orange pustules. The disease reduces plant vigor, seed fill, 
+and root growth. Losses are greatest when the disease is active before or during flowering. Leaf rust is a potentially explosive disease; it requires a 
+very short time to go from low to epidemic levels on a susceptible variety. In severe cases, infected leaves wither and die rapidly. Warm 
+temperatures and high humidity or rain favors its development. Rust is present almost every year in some part of Kentucky, however most years it 
+develops too late to cause extensive damage.
+Powdery Mildews
+Powdery mildews are diseases caused by some closely related fungi. The mildew can be diagnosed by a grayish white powder mat leaves and in some 
+cases stems. Affected leaves usually turn yellow, wither and die rapidly.
+photo: Gerald Holmes, California Polytechnic State University at San Luis Obispo, Bugwood.org
+Powdery mildew of wheat is easily diagnosed by the white, powdery patches that form on the upper surfaces of lower leaves and stems. The
+patches turn a dull gray-brown and may have small black embedded specks. This disease can spread to all aboveground parts of the plant.
+The fungus responsible for powdery mildew can persist between seasons in infested wheat stubble and in overwintering wheat. Spores then infect 
+plants during periods of high moisture (not necessarily rain) and cool to moderate temperatures. Low light intensity, which accompanies dreary 
+weather, and a dense, lush crop canopy favor this disease. Hot daytime temperatures (80°F plus) and moderate nighttime temperatures will stop 
+powdery mildew development.
+Downy Mildews
+photo: Gerald Holmes, California Polytechnic State University at San Luis Obispo, Bugwood.org
+Downy mildews are caused by organisms similar to fungi. Colonies often appear first on the underside of leaves, and they sometimes have a bluish 
+tinge. Many can grow systemically throughout the plant. Downy mildews are generally favored by cool temperatures ( 58-72° F) and relative 
+humidity above 85% at the leaf surface. Blue mold of tobacco is a downy mildew disease. Deformed plant growth ("crazy top") may result from 
+downy mildew as in the case of sorghum downy mildew of corn or grain sorghum.
+Wilts, Root and Crown Rots
+The main symptoms of these three diseases are wilting, stunting, and death. The causal organisms are usually soil-borne, that is they are already 
+present in the soil when the host crop is planted. Most other diseases are usually spread through the air. Some of these diseases may be controlled 
+through the use of soil fungicides and/or soil fumigants but most are controlled with resistant varieties and cultural practices. Good controls are not 
+available for many of these diseases.
+Wilts
+Most wilt diseases are caused by fungi -- Fusarium and Verticillium -- and a bacterium, Erwinia. Each parasite causes wilts on a wide range of crop 
+plants. A light to dark brown streaking often can be seen when the stem of a diseased plant is cut lengthwise. However, it is often difficult to determine 
+which of these wilt diseases a plant may have.
+Plants with Fusarium or Verticillium wilt grow slower than healthy plants and may show stunting effects before wilting occurs. The lower leaves 
+usually turn yellow and wilt first, then yellowing and wilting slowly progress up the plant. It may take several days to a few weeks from first wilting 
+and plant death.
+photo: J.K. Pataky, University of Illinois at Urbana-Champaign, Bugwood.org
+Stewart’s wilt of corn is a bacterial disease with two phases. The seedling wilt stage occurs when young plants have a systemic infection. The leaf 
+blight stage occurs when plants are infected after the seedling stage. The bacterium spends the winter in the corn flea beetle. The bacterium enters the 
+plant at wounds made when an infected flea beetle feeds on a susceptible plant.
+Stewart's wilt is controlled effectively by planting resistant corn hybrids. Resistance restricts the movement of bacteria in the vascular system of 
+plants and prevents plants from becoming infected systemically. Most field corn hybrids are moderately to highly resistant; sweet corn hybrids range 
+from highly susceptible to resistant.
+Crown Rots
+photo: Ernesto Moya, Bugwood.org
+Crown rots include causal organisms that attack the plant at/or near the soil line. Crown rots are called various names such as collar rot, stem blight, 
+stalk rot and southern blight. Affected plants are generally, at first, unthrifty with leaves smaller and lighter green than normal. Leaves usually turn 
+yellow and, in advanced stages of disease, wilt and die. The crown or base of the stem will be water-soaked, discolored or decayed. With some 
+diseases, this area may dry rot and become shredded. A moldy growth and various colored fungus fruiting bodies often form in this diseased area.
+Most crops are affected by one or more of this type of disease.
+Root Rots
+photo: Mary Burrows, Montana State University, Bugwood.org
+Above-ground symptoms of root rot diseases are variable. Some plants may show wilt type symptoms and die rapidly; others may become yellow, 
+stunted, slow growing and may not die for some time after the first symptoms are seen. Roots are reduced in size and will be light brown to black in 
+color, with both taproots and feeder roots decayed. Most plants are susceptible to root rots.
+A great variety of fungi can infect the crown of the alfalfa plant, which is the portion of the taproot just below the soil line. The alfalfa plant stores food 
+reserves for winter in the crown. Crown rot diseases interfere with this process, making plants more susceptible to winter injury.
+Seed and Seedling Diseases
+Seed and seedling diseases occur on plants from after germination until about 1 or 2 weeks after seedling emergence. Fungi that are on the seed at 
+planting or are present in the soil are the cause. They often are responsible for poor emergence and thin stands.
+photo: Paul Bertrand, University of Georgia, Bugwood.org
+If the disease occurs before emergence, the seedling may rot before it has a chance to get out of the soil. This is referred to as pre-emergence dampingoff. After emergence, seedling stems may be attacked at or below the soil line in what is termed post-emergence damping-off.
+Two general symptoms are brown to red-brown or black cankers at the soil line and a soft watery rot. If the canker girdles the stem, the seedling falls 
+over and dies. The plant may continue to live but will be stunted with partial girdling, In the second instance, the soft watery rot continues until the 
+entire seedling decays.
+Seed and seedling diseases are most common in cool, wet soils. They are controlled by planting crops in warm soil, by fungicide seed treatments and 
+by use of in-furrow, broadcast, or band-applied fungicides.
+Smuts
+photo: Clemson University - USDA Cooperative Extension Slide Series, Bugwood.org
+Smut disease fungi attack grasses and cereal tops. The most destructive smuts attack small grains, often causing the kernels of grain in the head to be 
+replaced by a mass of dark powdery fungus spores. Corn smut disease results in a swelling of the affected plant part with the galls produced on the 
+plant containing a mass of dark, powdery spores.
+Viruses
+Viruses are too small to be seen with a microscope. They are generally recognized by their effects on plants. There can be a variety of responses: 
+stunted growth; change in plant color; abnormal formation of infected roots, stems, leaves, or fruit. Mosaic diseases, characterized by light and dark 
+blotchy patterns, usually are caused by viruses.
+It can be difficult to distinguish between diseases caused by viruses and those caused by fungi and bacteria. A positive diagnosis requires 
+sophisticated testing, such as inoculating indicator plants and observing the results or using specifically identified antibodies to test for the presence of 
+the organism.
+Viruses depend upon living organisms for food and reproduction; they cannot exist very long outside a host. Viruses are commonly spread from 
+plant to plant by mites, aphids, leafhoppers, or whiteflies. A few are spread in the seeds of the infected plant.
+photo: Mary Ann Hansen, Virginia Polytechnic Institute and State University, Bugwood.org
+Maize Dwarf Mosaic Virus (MDMV) and Maize Chlorotic Dwarf Virus (MCDV) can survive between crops in underground rhizomes. MCDV is 
+moved between corn, Johnsongrass, and sorghum by leafhoppers. Symptoms only appear in corn. MDMV, carried by aphids, infects over 250 species 
+of grasses.
+Nematodes
+Nematodes are small, usually microscopic roundworms with mouthparts like hollow needles – called stylets. Stylets are used to puncture and feed on 
+the contents of plant cells. Nematodes may develop and feed inside or outside of a plant. They are easy spread on footwear, tools, and equipment.
+The life cycle of a nematode includes an egg, several larval stages, and an adult. Most larvae look like small adults. In unfavorable conditions, females 
+of some species form inactive, resistant forms called cysts. The cyst is the hard, leathery, egg-filled body of the dead female, which is difficult to 
+penetrate with pesticides. A cyst may protect eggs for as long as 10 years.
+Typical aboveground symptoms are stunting, yellowing, loss of vigor, general decline, and eventual death of plants. Since many other problems can 
+cause symptoms root and soil samples need to be examined when nematode injury is suspected. Nematodes are controlled with cultural practices such 
+as crop rotation, resistant varieties and nematicides.
+Cysts (bodies of female nematodes) are visible on diseased roots from four weeks after planting through the rest of the season
+SCN-affected plants (left) vs. unaffected plants (right)
+photos: Paul Bachi, University of Kentucky Research and Education Center, Bugwood.org
+In Kentucky, the soybean cyst nematode (SCN) is the most damaging nematode disease. It feeds on the roots of soybean and other host plants. 
+Feeding removes nutrients and disrupts nutrient and water movement. An infestation also reduces the production of nitrogen-fixing nodules and 
+encourages other root diseases.
+SCN in Kentucky
+ Causes up to 30% yield loss without any obvious problem until harvest.
+ Eggs can survive in the soil for many years even without host plants.
+ Reproduction occurs on resistant soybeans.
+ Moves every way that soil moves.
+ SCN can be present in a field for many years before it is detected.
+ Symptoms may look like those due to other causes.
+Diagnosis of Plant Diseases
+A correct diagnosis is the first step in disease management. To recognize a disease condition, you must know the plant's normal growth habits. When 
+you are trying to identify the cause of a plant disease, you need to look for symptoms - the host plant's reaction to the disease agent, and signs - visible 
+presence of the disease agent.
+Many different plant diseases cause similar symptoms. Different pathogens and agents that are not pathogens can cause leaf spots, wilts, root galls, 
+or stunted growth. For example, similar symptoms may be a result of mechanical injury, improperly applied fertilizers and pesticides, or frost. Often, 
+the only way to pinpoint the cause is to find the observable signs that the particular disease agent is present -such as fungal spores and mycelium or 
+bacterial ooze.
