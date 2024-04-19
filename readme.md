@@ -10,4 +10,4 @@ https://dr-green.onrender.com/
 
 #by installing the requirements and add your env file you can run 
 
-streamlit run vectara.py
+streamlit run plant.py
