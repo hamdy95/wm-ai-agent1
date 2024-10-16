@@ -1,80 +1,130 @@
 import streamlit as st
-from langchain.vectorstores import Vectara  # From Langchain project
-from langchain.llms import OpenAI  # From Langchain project
-from langchain.chains import RetrievalQA  # From Langchain project
-import os
-from dotenv import load_dotenv  # From both projects (if used)
-from clarifai.client.model import Model  # From Clarifai project
-import base64
+import openai
+from audiorecorder import audiorecorder
+import tempfile
+import toml
 
-load_dotenv()
+# Load API key from secrets.toml
+openai_api_key = st.secrets["openai"]["api_key"]
+client = openai.OpenAI(api_key=openai_api_key)
 
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
-VECTARA_API_KEY = os.environ.get('VECTARA_API_KEY')
-clarifai_pat = os.environ.get("CLARIFAI_PAT")
+# Initialize session state variables
+if 'selected_restaurant' not in st.session_state:
+    st.session_state.selected_restaurant = None
 
-# Load the text file content
-with open("extracted_text.txt", "r", encoding="utf-8") as file:
-    EXTRACTED_TEXT = file.read()
+# Function to transcribe audio
+def transcribe_audio(audio_file):
+    transcription = client.audio.transcriptions.create(
+        model="whisper-1", 
+        file=audio_file,
+        language="ar"
+    )
+    return transcription.text
 
-class Document:
-    def __init__(self, page_content, metadata=None):
-        self.page_content = page_content
-        self.metadata = metadata
+# System prompt for correcting transcriptions
+def generate_corrected_transcript(temperature, system_prompt, transcription_text):
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=temperature,
+        messages=[
+            {
+                "role": "system",
+                "content": system_prompt
+            },
+            {
+                "role": "user",
+                "content": transcription_text
+            }
+        ]
+    )
+    return response.choices[0].message.content
 
-def langchain_func(text_content, question):
-    # Create a list of Document objects from the text content
-    documents = [Document(text_content, metadata={"source": "plant_info"})]
+# Function to apply corrections to transcription
+def apply_corrections(transcription_text):
+    selected_restaurant = st.session_state.selected_restaurant
+    menu = restaurant_menus[selected_restaurant]
+
+    system_prompt = f"""
+    You are a helpful assistant for correcting food orders. Correct any spelling errors in the transcribed text and make sure that the names of the following food items:
+    . Only add necessary punctuation such as periods, commas, and capitalization, and use only the context provided.
+    """
     
-    vectara = Vectara.from_documents(documents, embedding=None)
-    qa = RetrievalQA.from_llm(llm=OpenAI(), retriever=vectara.as_retriever())
-    answer = qa({'query': question})
-    return answer
-
-def diagnose_with_clarifai(image_bytes, text_content):
-    # Clarifai model for plant diagnosis
-    model_url = "https://clarifai.com/gcp/generate/models/gemini-pro-vision"
-    clarifai_model = Model(url=model_url, pat=clarifai_pat)
-
-    # Construct the prompt including the instructions for the model
-    prompt = "As a plant doctor, mention the name of the plant and diagnose the plant issue based on the provided image and text."
-
-    # Combine prompt, user query, and image bytes
-    combined_data = prompt + " " + base64.b64encode(image_bytes).decode()
-
-    # Predict using Clarifai model
-    model_prediction = clarifai_model.predict_by_bytes(combined_data.encode(), input_type="text")
+    corrected_text = generate_corrected_transcript(temperature=0, system_prompt=system_prompt, transcription_text=transcription_text)
     
-    if model_prediction.outputs and model_prediction.outputs[0].data.text:
-        disease_description = model_prediction.outputs[0].data.text.raw
-        
-        st.write(f"Disease Description: {disease_description}")
-        
-        return disease_description
-    else:
-        st.write(f"Model Prediction: {model_prediction}")
-        st.write("Unable to identify disease description. Please try again.")
-        return None
+    st.write("Corrected Transcription:")
+    st.write(corrected_text)
+    check_menu(corrected_text)
 
-def main():
-    st.title("Combined Plant Disease Diagnosis and Information App")
+# Function to check if food is in the menu using GPT-4o
+def check_menu(corrected_text):
+    selected_restaurant = st.session_state.selected_restaurant
+    menu = restaurant_menus[selected_restaurant]
 
-    # Question input and answer display
-    question = st.text_input("Ask a question about the document:")
-    if st.button("Ask"):
-        if EXTRACTED_TEXT:
-            answer = langchain_func(EXTRACTED_TEXT, question)
-            st.write("Answer:")
-            st.write(answer)
+    response = client.chat.completions.create(
+        model='gpt-4o',
+        messages=[
+            {
+                'role': 'system',
+                'content': (
+                    "You are tasked with checking if the ordered food is available in the restaurant's menu."
+                )
+            },
+            {
+                'role': 'user',
+                'content': f"""
+Restaurant Name: {selected_restaurant}
 
-    # File upload section
-    image_file = st.file_uploader("Upload image of the plant leaf (optional)", type=['jpg', 'png', 'jpeg'])
-    
-    # Disease description display (based on image and potentially text content)
-    if image_file is not None:
-        image_bytes = image_file.read()
-        if st.button("Diagnose Plant"):
-            diagnose_with_clarifai(image_bytes, EXTRACTED_TEXT)
+Menu:
+{menu}
 
-if __name__ == "__main__":
-    main()
+Customer Order: {corrected_text}
+
+Check if the customer's order is available in the restaurant's menu. If the order is available, confirm it and display a message like 'Your order has been placed: [ordered items].' If the order is not on the menu, tell the user that the item is not available and ask them to select a restaurant again.
+                """
+            }
+        ],
+        max_tokens=4000
+    )
+    result = response.choices[0].message.content
+    st.write(result)
+
+# Restaurant selection
+st.title("Restaurant Selection and Food Ordering App")
+
+restaurant_menus = {
+    "Pizza Palace": ["Pepperoni Pizza", "Margherita Pizza", "Cheese Pizza", "Veggie Pizza"],
+    "Burger Shack": ["Cheeseburger", "Bacon Burger", "Veggie Burger", "Chicken Sandwich"],
+    "Taco Town": ["Beef Taco", "Chicken Taco", "Fish Taco", "Vegetarian Taco"]
+}
+
+restaurant_list = list(restaurant_menus.keys())
+
+st.write("Step 1: Select a restaurant")
+selected_restaurant = st.selectbox("Choose a restaurant:", restaurant_list)
+
+if selected_restaurant:
+    st.session_state.selected_restaurant = selected_restaurant
+    st.write(f"You selected: {selected_restaurant}")
+
+# Step 2: Order food using voice or file upload
+st.write("Step 2: Order your food using one of the methods below")
+
+# Audio recording section
+st.write("Or use your voice in real-time:")
+
+# Audio recorder for real-time voice recording
+audio = audiorecorder("Click to record", "Click to stop recording")
+
+if len(audio) > 0:
+    # To play audio in frontend:
+    st.audio(audio.export().read())  
+
+    # To save audio to a temporary file
+    temp_audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    audio.export(temp_audio_file.name, format="wav")
+
+    with open(temp_audio_file.name, "rb") as audio_file:
+        with st.spinner("Transcribing..."):
+            transcription_text = transcribe_audio(audio_file)
+        st.success("Transcription complete!")
+        apply_corrections(transcription_text)
