@@ -3,9 +3,9 @@ import openai
 from audiorecorder import audiorecorder
 import tempfile
 import toml
-
+import os
 # Load API key from secrets.toml
-openai_api_key = 'sk'
+openai_api_key = os.environ["OPENAI_API_KEY"]
 client = openai.OpenAI(api_key=openai_api_key)
 
 # Initialize session state variables
