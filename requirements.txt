@@ -1,5 +1,8 @@
-openai
 streamlit
-clarifai
-langchain
-python-dotenv==1.0.0
+openai
+sounddevice
+numpy
+scipy
+toml
+streamlit-audiorecorder
+pydub
