@@ -5,7 +5,7 @@ import tempfile
 import toml
 
 # Load API key from secrets.toml
-openai_api_key = st.secrets["openai"]["api_key"]
+openai_api_key = 'sk'
 client = openai.OpenAI(api_key=openai_api_key)
 
 # Initialize session state variables
