@@ -1,8 +1,8 @@
-streamlit
+flask
+PyMuPDF
 openai
-sounddevice
-numpy
-scipy
+python-dotenv
+python-multipart
+werkzeug
 toml
-streamlit-audiorecorder
-pydub
+gunicorn
