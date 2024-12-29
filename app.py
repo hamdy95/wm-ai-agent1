@@ -18,6 +18,94 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# [Previous functions remain the same - extract_toc_and_sections, extract_section_with_gpt]
+
+def perform_audit(iosa_checklist: str, input_text: str) -> str:
+    """
+    Perform an audit using GPT to evaluate compliance with ISARPs
+    
+    Args:
+        iosa_checklist (str): The IOSA checklist standards to evaluate against
+        input_text (str): The text to be evaluated
+        airline_profile (str): The airline profile information
+        
+    Returns:
+        str: Audit results including assessment, recommendations, and compliance scores
+    """
+    # Load the secrets from the toml file
+    
+
+    # Create the OpenAI client using the API key from secrets.toml
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+    # OpenAI API request
+    response = client.chat.completions.create(
+        model='gpt-4o',
+        messages=[
+            {
+                'role': 'system',
+                'content': """
+    You are an expert aviation auditor with over 20 years of experience in both business and commercial aviation...
+    [Rest of the system message remains the same]
+    """
+            },
+            {
+                'role': 'user',
+                'content': f"""
+    OBJECTIVES:
+    You are provided with a document and an input text...
+    [Rest of the user message remains the same]
+    
+    ISARPs: 
+    {iosa_checklist}
+
+    INPUT_TEXT: 
+    {input_text}
+    """
+            }
+        ],
+        max_tokens=4000
+    )
+    
+    return response.choices[0].message.content
+
+@app.route('/audit', methods=['POST'])
+def conduct_audit():
+    """
+    API endpoint to perform aviation compliance audit
+    """
+    try:
+        # Validate request data
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+            
+        data = request.json
+        required_fields = ['iosa_checklist', 'input_text']
+        
+        # Check if all required fields are present
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({
+                "error": f"Missing required fields: {', '.join(missing_fields)}"
+            }), 400
+
+        # Perform the audit
+        audit_result = perform_audit(
+            data['iosa_checklist'],
+            data['input_text']
+        )
+        
+        return jsonify({
+            "message": "Audit completed successfully",
+            "audit_result": audit_result
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Error performing audit: {str(e)}"
+        }), 500
+    
+
 def extract_toc_and_sections(pdf_path: str, expand_pages: int = 7) -> Dict[str, List[Dict[str, Any]]]:
     """
     Extract table of contents and sections from a PDF file
@@ -229,40 +317,13 @@ def health_check():
 def request_entity_too_large(error):
     return jsonify({"error": "File too large"}), 413
 
-# Main block for local testing
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({"error": "Bad request"}), 400
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    return jsonify({"error": "Internal server error"}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-# Requirements for deployment
-# requirements.txt content:
-"""
-flask
-PyMuPDF
-openai
-python-dotenv
-python-multipart
-werkzeug
-toml
-"""
-
-# Dockerfile for containerization
-"""
-FROM python:3.10-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 5000
-
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
-"""
-
-# .env file template
-"""
-OPENAI_API_KEY=your_openai_api_key_here
-PORT=5000
-"""
