@@ -66,7 +66,13 @@ def get_embedding(text: str) -> list:
 
 def num_tokens_from_string(string: str) -> int:
     """Returns the number of tokens in a text string."""
-    encoding = tiktoken.encoding_for_model("gpt-4o")
+    try:
+        # Try to use gpt-4o specific encoding
+        encoding = tiktoken.encoding_for_model("gpt-4o")
+    except KeyError:
+        # Fall back to cl100k_base encoding used by gpt-4 and newer models if gpt-4o is not available
+        encoding = tiktoken.get_encoding("cl100k_base")
+    
     num_tokens = len(encoding.encode(string))
     return num_tokens
 
@@ -89,7 +95,11 @@ def chunk_text(text: str, chunk_size: int = 300, overlap: int = 100) -> List[Dic
                 continue
                 
             # Get encoding for the model
-            encoding = tiktoken.encoding_for_model("gpt-4o")
+            try:
+                encoding = tiktoken.encoding_for_model("gpt-4o")
+            except KeyError:
+                encoding = tiktoken.get_encoding("cl100k_base")
+                
             para_tokens = encoding.encode(paragraph)
             
             # If paragraph is small enough, keep it as one chunk
@@ -125,7 +135,11 @@ def chunk_text(text: str, chunk_size: int = 300, overlap: int = 100) -> List[Dic
             section_title = title_match.group(1).strip() if title_match else f"Section {section_idx + 1}"
             
             # Get encoding for the model
-            encoding = tiktoken.encoding_for_model("gpt-4o")
+            try:
+                encoding = tiktoken.encoding_for_model("gpt-4o")
+            except KeyError:
+                encoding = tiktoken.get_encoding("cl100k_base")
+                
             section_tokens = encoding.encode(section)
             
             # If section is small enough, keep it as one chunk
@@ -248,7 +262,8 @@ async def upload_policy_document(
         document_data = {
             "title": doc_metadata.get("title", file.filename),
             "description": doc_metadata.get("description", "Company Policy Document"),
-            "language": doc_metadata.get("language", "ar")
+            "language": doc_metadata.get("language", "ar"),
+            "full_text": text  # Store the full text for full_context approach
         }
         
         document_result = supabase_client.table("documents").insert(document_data).execute()
@@ -402,7 +417,11 @@ async def query_document(request: QueryRequest):
             max_tokens = 120000  # GPT-4o context limit
             
             if token_count > max_tokens - 1000:  # Leave room for query and response
-                encoding = tiktoken.encoding_for_model("gpt-4o")
+                try:
+                    encoding = tiktoken.encoding_for_model("gpt-4o")
+                except KeyError:
+                    encoding = tiktoken.get_encoding("cl100k_base")
+                    
                 tokens = encoding.encode(full_text)
                 full_text = encoding.decode(tokens[:max_tokens - 1000])
             
