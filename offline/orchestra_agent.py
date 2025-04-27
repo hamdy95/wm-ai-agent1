@@ -19,6 +19,13 @@ from dotenv import load_dotenv
 from replace import replace_text_and_colors
 import logging
 
+# Create FastAPI app instance at module level
+app = FastAPI(
+    title="WordPress Theme Transformer API",
+    description="API for transforming WordPress themes with Elementor",
+    version="1.0.0"
+)
+
 # Handle imports differently based on how script is run
 try:
     # When imported as a module
@@ -903,13 +910,6 @@ class ThemeTransformerOrchestrator:
                     shutil.rmtree(work_dir)
                 except Exception as e:
                     print(f"Failed to cleanup work directory: {e}")
-
-# Create FastAPI app
-app = FastAPI(
-    title="WordPress Theme Transformer API",
-    description="API for transforming WordPress themes with Elementor",
-    version="1.0.0"
-)
 
 # Define request models
 class ThemeTransformRequest(BaseModel):
