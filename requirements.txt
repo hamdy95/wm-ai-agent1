@@ -9,5 +9,5 @@ pydantic==2.5.2
 starlette==0.27.0
 typing-extensions==4.8.0
 xmltodict==0.13.0
-httpx==0.25.1
+httpx
 uuid==1.30 
