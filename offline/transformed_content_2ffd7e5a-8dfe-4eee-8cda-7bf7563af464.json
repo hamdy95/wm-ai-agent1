@@ -1,0 +1,751 @@
+{
+  "text_transformations": [
+    {
+      "original": "\"Julia Caulfield\"",
+      "transformed": "\"Julia Caulfield\""
+    },
+    {
+      "original": "\"For U.S. congress\"",
+      "transformed": "\"Candidate for U.S. Congress\""
+    },
+    {
+      "original": "\"Divider\"",
+      "transformed": "\"Separator\""
+    },
+    {
+      "original": "\"Fighting to get you a better life.\"",
+      "transformed": "\"Committed to improving your future.\""
+    },
+    {
+      "original": "\"See What Matters\"",
+      "transformed": "\"Focus on What's Important\""
+    },
+    {
+      "original": "\"About Julia\"",
+      "transformed": "\"Julia's Profile\""
+    },
+    {
+      "original": "\"Meet Julia Caulfeeld\"",
+      "transformed": "\"Introducing Julia Caulfeeld\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Quis ipsum suspendisse ultrices gravida dictum fusce ut placerat. Amet mattis vulputate enim nulla aliquet porttitor. Metus vulputate eu scelerisque felis. Donec adipiscing tristique risus nec feugiat.\"",
+      "transformed": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.\""
+    },
+    {
+      "original": "\"See all endorsements\"",
+      "transformed": "\"View All Recommendations\""
+    },
+    {
+      "original": "\"More about Julia\"",
+      "transformed": "\"Further Details on Julia\""
+    },
+    {
+      "original": "\"Issues & Solutions\"",
+      "transformed": "\"Challenges & Resolutions\""
+    },
+    {
+      "original": "\"Julia's Platform\"",
+      "transformed": "\"Julia's Website\""
+    },
+    {
+      "original": "\"Healthcare\"",
+      "transformed": "\"Medical Services\""
+    },
+    {
+      "original": "\"Gun Control\"",
+      "transformed": "\"Firearm Regulations\""
+    },
+    {
+      "original": "\"Climate Change\"",
+      "transformed": "\"Environmental Shifts\""
+    },
+    {
+      "original": "\"Veterans &amp; Military\"",
+      "transformed": "\"Military Heroes\""
+    },
+    {
+      "original": "\"Immigration\"",
+      "transformed": "\"Immigration Matters\""
+    },
+    {
+      "original": "\"Voter Protection\"",
+      "transformed": "\"Protecting Voters\""
+    },
+    {
+      "original": "\"Come Support Julia\"",
+      "transformed": "\"Support Julia's Cause\""
+    },
+    {
+      "original": "\"Campaign Trail\"",
+      "transformed": "\"Political Campaign\""
+    },
+    {
+      "original": "\"Bergen City, NJ\"",
+      "transformed": "\"Explore Bergen City, New Jersey\""
+    },
+    {
+      "original": "\"Sun, November 31, 2018 - 09:00 pm (EST)\"",
+      "transformed": "\"Sunday, November 31, 2018 - 09:00 pm (Eastern Time)\""
+    },
+    {
+      "original": "\"View Event\"",
+      "transformed": "\"Discover Event\""
+    },
+    {
+      "original": "\"Burlington County, NJ\"",
+      "transformed": "\"Discover Burlington County, New Jersey\""
+    },
+    {
+      "original": "\"Sun, December 10, 2018 - 07:00 pm (EST)\"",
+      "transformed": "\"Sunday, December 10, 2018 - 07:00 pm (Eastern Time)\""
+    },
+    {
+      "original": "\"View Event\"",
+      "transformed": "\"Explore Event\""
+    },
+    {
+      "original": "\"Gloucester, NJ\"",
+      "transformed": "\"Location: Gloucester, NJ\""
+    },
+    {
+      "original": "\"Sun, December 21, 2018 - 03:00 pm (EST)\"",
+      "transformed": "\"Date: Sun, December 21, 2018 - 03:00 pm (EST)\""
+    },
+    {
+      "original": "\"View Event\"",
+      "transformed": "\"Discover Event\""
+    },
+    {
+      "original": "\"Salem, NJ\"",
+      "transformed": "\"Location: Salem, NJ\""
+    },
+    {
+      "original": "\"Sun, December 14, 2018 - 06:30 pm (EST)\"",
+      "transformed": "\"December 14, 2018 - 06:30 pm\""
+    },
+    {
+      "original": "\"View Event\"",
+      "transformed": "\"Explore Event\""
+    },
+    {
+      "original": "\"Hunterdon, NJ\"",
+      "transformed": "\"Location: Hunterdon, NJ\""
+    },
+    {
+      "original": "\"Sun, December 30, 2018 - 09:00 pm (EST)\"",
+      "transformed": "\"December 30, 2018 - 09:00 pm\""
+    },
+    {
+      "original": "\"View Event\"",
+      "transformed": "\"Event Details\""
+    },
+    {
+      "original": "\"See all events\"",
+      "transformed": "\"Explore Upcoming Events\""
+    },
+    {
+      "original": "\"Register to vote\"",
+      "transformed": "\"Sign Up to Cast Your Vote\""
+    },
+    {
+      "original": "\"Can Julia Caulfield Count On Your Support?\"",
+      "transformed": "\"Support Julia Caulfield Today\""
+    },
+    {
+      "original": "\"Pledge your vote\"",
+      "transformed": "\"Commit to Voting\""
+    },
+    {
+      "original": "\"Connect with Julia\"",
+      "transformed": "\"Get in Touch with Julia\""
+    },
+    {
+      "original": "\"Get Involved\"",
+      "transformed": "\"Engage Now\""
+    },
+    {
+      "original": "\"Julia For Congress\"",
+      "transformed": "\"Julia Representing\""
+    },
+    {
+      "original": "\"Julia Caulfield<br>2020\"",
+      "transformed": "\"Julia 2020 Campaign\""
+    },
+    {
+      "original": "\"About Julia\"",
+      "transformed": "\"Julia's Story\""
+    },
+    {
+      "original": "\"Career\"",
+      "transformed": "\"Professional Journey\""
+    },
+    {
+      "original": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.Quis ipsum suspendisse ultrices gravida dictum fusce ut placerat. Amet mattis vulputate enim nulla aliquet porttitor. Metus vulputate eu scelerisque felis. Donec adipiscing tristique risus nec feugiat.",
+      "transformed": "Engage with compelling content that resonates with your audience, showcasing professionalism and modern design. Crafted with precision and attention to detail, our theme offers a clean and contemporary look to elevate your website experience."
+    },
+    {
+      "original": "See all endorsements",
+      "transformed": "Explore all recommendations"
+    },
+    {
+      "original": "Donate to campaign",
+      "transformed": "Support the cause"
+    },
+    {
+      "original": "New Jersey First",
+      "transformed": "Priority New Jersey"
+    },
+    {
+      "original": "Julia's Vision",
+      "transformed": "Visionary Julia"
+    },
+    {
+      "original": "\"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt.\"",
+      "transformed": "\"Engage with captivating content and immersive designs for a unique online experience.\""
+    },
+    {
+      "original": "\"donate to campaign\"",
+      "transformed": "\"Support our cause with a donation.\""
+    },
+    {
+      "original": "\"Experience\"",
+      "transformed": "\"Explore the Journey\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, ectetur adipiscing elit. Phasellus sagittis semper tortor. Nam porta leo ut suscipit. Nam porta leo ut suscipit.\"",
+      "transformed": "\"Discover a world of elegant designs and seamless user experiences.\""
+    },
+    {
+      "original": "\"Community\"",
+      "transformed": "\"Join Our Community\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, ectetur adipiscing elit. Phasellus sagittis semper tortor. Nam porta leo ut suscipit. Nam porta leo ut suscipit.\"",
+      "transformed": "\"Experience a sleek and elegant design with a focus on user experience. Engage effortlessly with the intuitive interface.\""
+    },
+    {
+      "original": "\"Accomplishments\"",
+      "transformed": "\"Achievements\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, ectetur adipiscing elit. Phasellus sagittis semper tortor. Nam porta leo ut suscipit. Nam porta leo ut suscipit.\"",
+      "transformed": "\"Discover a cutting-edge and sophisticated layout tailored to meet your needs. Experience a seamless browsing experience.\""
+    },
+    {
+      "original": "\"newsletter\"",
+      "transformed": "\"Subscribe to our newsletter\""
+    },
+    {
+      "original": "\"Sign up below to receive campaign updates!\"",
+      "transformed": "\"Stay informed with the latest campaign updates by signing up below.\""
+    },
+    {
+      "original": "\"Contact Us\"",
+      "transformed": "\"Get in Touch\""
+    },
+    {
+      "original": "\"Forward All Contributions To\"",
+      "transformed": "\"Send Your Contributions To\""
+    },
+    {
+      "original": "\"PO Box 481516 Jersey City, NJ 07305\"",
+      "transformed": "\"Address: PO Box 481516, Jersey City, NJ 07305\""
+    },
+    {
+      "original": "\"Campaign email\"",
+      "transformed": "\"Official Email\""
+    },
+    {
+      "original": "\"info@willforcongress.com\"",
+      "transformed": "\"Email: info@willforcongress.com\""
+    },
+    {
+      "original": "\"Our Office\"",
+      "transformed": "\"Office Location\""
+    },
+    {
+      "original": "\"Campaign mailing address\"",
+      "transformed": "\"Mailing Address\""
+    },
+    {
+      "original": "\"PO Box 481516 Jersey City, NJ 07305\"",
+      "transformed": "\"PO Box: 481516, Jersey City, NJ 07305\""
+    },
+    {
+      "original": "\"Campaign phone\"",
+      "transformed": "\"Contact Number\""
+    },
+    {
+      "original": "\"+1 (555) 4815 1623 42\"",
+      "transformed": "\"Phone: +1 (555) 4815 1623 42\""
+    },
+    {
+      "original": "\"Campaign Headquarters\"",
+      "transformed": "\"Corporate Hub\""
+    },
+    {
+      "original": "\"408 S. Eastwood Suite 1408, Building 5 Jersey City, NJ 07305\"",
+      "transformed": "\"Located at 408 S. Eastwood Suite 1408, Building 5, Jersey City, NJ 07305\""
+    },
+    {
+      "original": "\"newsletter\"",
+      "transformed": "\"Subscribe to our newsletter\""
+    },
+    {
+      "original": "\"Sign up below to receive campaign updates!\"",
+      "transformed": "\"Stay informed with the latest campaign updates by signing up below!\""
+    }
+  ],
+  "color_palette": {
+    "original_colors": [
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#2989ce",
+      "#2989ce",
+      "#ffffff",
+      "#e22e40",
+      "#16202f",
+      "#2989ce",
+      "#757a81",
+      "#e22e40",
+      "#ffffff",
+      "#16202f",
+      "#ffffff",
+      "#2989ce",
+      "#e22e40",
+      "#d8dadc",
+      "#fafafa",
+      "#16202f",
+      "#e2a7ad",
+      "#2989ce",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#e2a7ad",
+      "#2989ce",
+      "#16202f",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#e22e40",
+      "#16202f",
+      "#ffffff",
+      "#16202f",
+      "#e22e40",
+      "#ffffff",
+      "#2989ce",
+      "#d8dadc",
+      "#16202f",
+      "#2989ce",
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#e22e40",
+      "#16202f",
+      "#16202f",
+      "#ffffff",
+      "#e22e40",
+      "#ffffff",
+      "#16202f",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#e22e40",
+      "#16202f",
+      "#ffffff",
+      "#16202f",
+      "#e22e40",
+      "#ffffff",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#e22e40",
+      "#16202f",
+      "#ffffff",
+      "#16202f",
+      "#e22e40",
+      "#ffffff",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#e22e40",
+      "#16202f",
+      "#ffffff",
+      "#16202f",
+      "#e22e40",
+      "#ffffff",
+      "#2989ce",
+      "#16202f",
+      "#16202f",
+      "#16202f",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#2989ce",
+      "#2989ce",
+      "#ffffff",
+      "#e22e40",
+      "#131d30",
+      "#ffffff",
+      "#e2a7ad",
+      "#d8dadc",
+      "#2989ce",
+      "#ffffff",
+      "#bcbcbc",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#16202f",
+      "#2989ce",
+      "#757a81",
+      "#e22e40",
+      "#ffffff",
+      "#2989ce",
+      "#ffffff",
+      "#16202f",
+      "#e22e40",
+      "#ffffff",
+      "#16202f",
+      "#2989ce",
+      "#757a81",
+      "#ffffff",
+      "#2989ce",
+      "#ffffff",
+      "#16202f",
+      "#e22e40",
+      "#ffffff",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#2989ce",
+      "#ffffff",
+      "#2989ce",
+      "#bcbcbc",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#757a81",
+      "#16202f",
+      "#757a81",
+      "#000000",
+      "#2989ce",
+      "#2989ce",
+      "#ffffff",
+      "#16202f",
+      "#16202f",
+      "#2989ce",
+      "#d8dadc",
+      "#ffffff",
+      "#ffffff",
+      "#2989ce",
+      "#ffffff",
+      "#2989ce",
+      "#bcbcbc",
+      "#ffffff"
+    ],
+    "new_colors": [
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#c82c3a",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#8b8f94",
+      "#c82c3a",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#c82c3a",
+      "#e1e3e4",
+      "#f5f5f5",
+      "#4a4e5b",
+      "#e57b82",
+      "#2c7eb8",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#e57b82",
+      "#2c7eb8",
+      "#4a4e5b",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#c82c3a",
+      "#4a4e5b",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#c82c3a",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#c82c3a",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#f0f0f0",
+      "#c82c3a",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#c82c3a",
+      "#4a4e5b",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#c82c3a",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#c82c3a",
+      "#4a4e5b",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#c82c3a",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#c82c3a",
+      "#141f32",
+      "#f0f0f0",
+      "#e57b82",
+      "#e1e3e4",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#bcbcbc",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#8b8f94",
+      "#c82c3a",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#c82c3a",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#8b8f94",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#c82c3a",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#bcbcbc",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#8b8f94",
+      "#4a4e5b",
+      "#8b8f94",
+      "#000000",
+      "#2c7eb8",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#2c7eb8",
+      "#e1e3e4",
+      "#f0f0f0",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#f0f0f0",
+      "#2c7eb8",
+      "#bcbcbc",
+      "#f0f0f0",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b",
+      "#4a4e5b"
+    ]
+  },
+  "transformation_notes": "The new color palette maintains a modern and professional look with a clean design by using a combination of dark neutrals like charcoal gray and slate blue, along with accents of bright red for a pop of color. The shades have been carefully selected to create a cohesive and sophisticated color scheme for a WordPress theme."
+}

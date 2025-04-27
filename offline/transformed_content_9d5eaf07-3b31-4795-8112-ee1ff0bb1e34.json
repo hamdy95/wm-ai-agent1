@@ -1,0 +1,313 @@
+{
+  "text_transformations": [
+    {
+      "original": "\"[elementor-tag id=\\\"9763573\\\" name=\\\"current-date-time\\\" settings=\\\"%7B%22date_format%22%3A%22custom%22%2C%22custom_format%22%3A%22Y%22%2C%22before%22%3A%22Copyright%20%22%2C%22after%22%3A%22%20%C2%A9%20All%20rights%20Reserved.%20Design%20by%20Webmeccano%22%2C%22fallback%22%3A%222018%22%7D\\\"]\"",
+      "transformed": "\"[elementor-tag id=\\\"9763573\\\" name=\\\"current-date-time\\\" settings=\\\"%7B%22date_format%22%3A%22custom%22%2C%22custom_format%22%3A%22Y%22%2C%22before%22%3A%22Copyright%20%22%2C%22after%22%3A%22%20%C2%A9%20All%20rights%20Reserved.%20Design%20by%20Webmeccano%22%2C%22fallback%22%3A%222018%22%7D\\\"]\""
+    },
+    {
+      "original": "\"Accounting & Bookkeeping Experts let's\"",
+      "transformed": "\"Gym & Fitness Experts\""
+    },
+    {
+      "original": "\"Elevate your business\"",
+      "transformed": "\"Enhance your fitness journey\""
+    },
+    {
+      "original": "\"We will strive to meet all your business necessities and plans. You can rely on easy accessibility to our qualified staff and prompt solutions to your problems.\"",
+      "transformed": "\"Our team is dedicated to meeting all your fitness goals and plans. Count on our expert trainers for personalized guidance and quick resolutions to any issues.\""
+    },
+    {
+      "original": "\"Learn More\"",
+      "transformed": "\"Explore Further\""
+    },
+    {
+      "original": "\"Get Started\"",
+      "transformed": "\"Join Us\""
+    },
+    {
+      "original": "\"What we do\"",
+      "transformed": "\"Our Services\""
+    },
+    {
+      "original": "\"Comprehensive solutions when it comes to restructuring your business, raising capital, attracting partners, or performing due diligence. Use our knowledge to improve your decisions.\"",
+      "transformed": "\"Complete solutions for business restructuring, capital raising, partner attraction, and due diligence. Utilize our expertise to enhance your strategies.\""
+    },
+    {
+      "original": "\"Our Expertise & Services\"",
+      "transformed": "\"Our Specialties & Services\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+      "transformed": "\"Experience the best in fitness with our cutting-edge gym services designed for you.\""
+    },
+    {
+      "original": "\"Business filings\"",
+      "transformed": "\"Gym memberships\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+      "transformed": "\"Engage in a high-intensity workout routine in our sleek black-themed gym.\""
+    },
+    {
+      "original": "\"Consulting\"",
+      "transformed": "\"Personal training\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+      "transformed": "\"Experience top-notch fitness guidance from our expert trainers.\""
+    },
+    {
+      "original": "\"Tax Advice\"",
+      "transformed": "\"Nutrition counseling\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+      "transformed": "\"Welcome to our gym website, designed with sleek black aesthetics to inspire your fitness journey.\""
+    },
+    {
+      "original": "\"General Finance\"",
+      "transformed": "\"Gym Essentials\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+      "transformed": "\"Explore our range of gym facilities and classes to elevate your workout experience.\""
+    },
+    {
+      "original": "\"We help your time and work for your money.\"",
+      "transformed": "\"Achieve your fitness goals with our dedicated team and premium gym services.\""
+    },
+    {
+      "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\"",
+      "transformed": "\"Immerse yourself in a world of fitness and wellness, where every workout is an opportunity for growth and transformation.\""
+    },
+    {
+      "original": "\"Hire Us\"",
+      "transformed": "\"Join Us\""
+    },
+    {
+      "original": "\"Business Partners\"",
+      "transformed": "\"Fitness Partners\""
+    },
+    {
+      "original": "\"Our Reviews\"",
+      "transformed": "\"Client Testimonials\""
+    },
+    {
+      "original": "\"Review Name\"",
+      "transformed": "\"Customer Name\""
+    },
+    {
+      "original": "\"Review Paragraph\"",
+      "transformed": "\"Testimonial Content\""
+    },
+    {
+      "original": "\"Review Name\"",
+      "transformed": "\"Testimonial Title\""
+    },
+    {
+      "original": "\"Review Paragraph\"",
+      "transformed": "\"Testimonial Content\""
+    },
+    {
+      "original": "\"Review Name\"",
+      "transformed": "\"Testimonial Title\""
+    },
+    {
+      "original": "\"Review Paragraph\"",
+      "transformed": "\"Testimonial Content\""
+    },
+    {
+      "original": "\"Contact Us\"",
+      "transformed": "\"Get in Touch\""
+    },
+    {
+      "original": "\"Accounting & Bookkeeping Experts\"",
+      "transformed": "\"Fitness & Training Specialists\""
+    },
+    {
+      "original": "\"Tax and Accounting done with the utmost knowledge, Integrity, Trust, Passion and Security. Our Mission is to provide clients with personalized Tax accounting and Consulting Services\"",
+      "transformed": "\"Fitness and Nutrition services delivered with expertise, Integrity, Trust, and Passion. Our Goal is to offer clients tailored Fitness and Training Programs.\""
+    },
+    {
+      "original": "\"Contact Us\"",
+      "transformed": "\"Get in Touch\""
+    },
+    {
+      "original": "\"+1 631-302-1945\"",
+      "transformed": "\"+1 (631) 302-1945\""
+    },
+    {
+      "original": "\"Learn how to get the most of the tax system for both corporate and individual income.\"",
+      "transformed": "\"Discover how to optimize your fitness journey for both bodybuilding and personal training.\""
+    },
+    {
+      "original": "[\n  \"Website Url\"\n]",
+      "transformed": "\"Website Address\""
+    }
+  ],
+  "color_palette": {
+    "original_colors": [
+      "#2A3751",
+      "#FFFFFF",
+      "#FF482F",
+      "#FFFFFF",
+      "#1d2f52",
+      "#002570",
+      "#ff482f",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#ffffff",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#ff482f",
+      "#ff482f",
+      "#ffffff",
+      "#ff482f",
+      "#1d2f52",
+      "#ffffff",
+      "#ff482f",
+      "#f8f8f9",
+      "#1d2f52",
+      "#606a7c",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#126bd1",
+      "#1d2f52",
+      "#606a7c",
+      "#f8f8f9",
+      "#ff482f",
+      "#ffffff",
+      "#a8afc1",
+      "#1d2f52",
+      "#1d2f52",
+      "#1d2f52",
+      "#606a7c",
+      "#1d2f52",
+      "#606a7c",
+      "#1d2f52",
+      "#606a7c",
+      "#2a3751",
+      "#002570",
+      "#ff482f",
+      "#a8afc1",
+      "#f8f8f9",
+      "#ffffff",
+      "#ffffff",
+      "#ea513c",
+      "#f8f8f9",
+      "#ffffff",
+      "#ffffff",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#ffffff",
+      "#ffffff",
+      "#f9f9f9",
+      "#2a302f",
+      "#FF482F",
+      "#FF482F",
+      "#000000",
+      "#f2f2f2",
+      "#00ce1b",
+      "#ededed",
+      "#000000",
+      "#00ce1b",
+      "#2a302f"
+    ],
+    "new_colors": [
+      "#4E5C79",
+      "#1D1D1D",
+      "#CF3721",
+      "#1D1D1D",
+      "#3B4D7E",
+      "#0099FF",
+      "#CF3721",
+      "#333333",
+      "#333333",
+      "#333333",
+      "#000000",
+      "#333333",
+      "#333333",
+      "#333333",
+      "#CF3721",
+      "#CF3721",
+      "#000000",
+      "#CF3721",
+      "#3B4D7E",
+      "#000000",
+      "#CF3721",
+      "#333333",
+      "#3B4D7E",
+      "#747E8F",
+      "#3B4D7E",
+      "#747E8F",
+      "#000000",
+      "#3B4D7E",
+      "#747E8F",
+      "#000000",
+      "#3B4D7E",
+      "#747E8F",
+      "#000000",
+      "#3B4D7E",
+      "#747E8F",
+      "#000000",
+      "#0E61B8",
+      "#3B4D7E",
+      "#747E8F",
+      "#333333",
+      "#CF3721",
+      "#000000",
+      "#8B90A1",
+      "#3B4D7E",
+      "#3B4D7E",
+      "#3B4D7E",
+      "#747E8F",
+      "#3B4D7E",
+      "#747E8F",
+      "#3B4D7E",
+      "#747E8F",
+      "#4E5C79",
+      "#0099FF",
+      "#CF3721",
+      "#8B90A1",
+      "#333333",
+      "#000000",
+      "#000000",
+      "#E54A35",
+      "#333333",
+      "#000000",
+      "#000000",
+      "#333333",
+      "#333333",
+      "#333333",
+      "#333333",
+      "#000000",
+      "#000000",
+      "#F9F9F9",
+      "#4E544E",
+      "#CF3721",
+      "#CF3721",
+      "#000000",
+      "#E6E6E6",
+      "#00CC1E",
+      "#E6E6E6",
+      "#000000",
+      "#00CC1E",
+      "#4E544E"
+    ]
+  },
+  "transformation_notes": "The new color palette for the gym website with black colors includes darker shades of blue, red, and green to maintain a sporty and energetic vibe. The palette now features a mix of deep blue, fiery red, vibrant green, and various shades of gray to create a strong and dynamic visual impact."
+}

@@ -1,0 +1,298 @@
+{
+  "input": {
+    "texts": [
+      "[elementor-tag id=\"9763573\" name=\"current-date-time\" settings=\"%7B%22date_format%22%3A%22custom%22%2C%22custom_format%22%3A%22Y%22%2C%22before%22%3A%22Copyright%20%22%2C%22after%22%3A%22%20%C2%A9%20All%20rights%20Reserved.%20Design%20by%20Webmeccano%22%2C%22fallback%22%3A%222018%22%7D\"]",
+      "Accounting & Bookkeeping Experts let's",
+      "Elevate your business",
+      "We will strive to meet all your business necessities and plans. You can rely on easy accessibility to our qualified staff and prompt solutions to your problems.",
+      "Learn More",
+      "Get Started",
+      "What we do",
+      "Comprehensive solutions when it comes to restructuring your business, raising capital, attracting parters or performing due-diligence. Use our knowledge to improve your decisions.",
+      "Our Expertise & Services",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "Business filings",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "Consulting",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "Tax Advice",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "General Finance",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+      "We help your time and work for your money.",
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+      "Hire Us",
+      "Business Partners",
+      "Our Reviews",
+      "Review Name",
+      "Review Paragraph",
+      "Review Name",
+      "Review Paragraph",
+      "Review Name",
+      "Review Paragraph",
+      "Contact Us",
+      "Accounting & Bookkeeping Experts",
+      "Tax and Accounting done with the utmost knowledge, Integrity, Trust, Passion and Security. Our Mission is to provide clients with personalized Tax accounting and Consulting Services",
+      "Contact Us",
+      "+1 631-302-1945",
+      "Learn how to get the most of the tax system for both corporate and individual income.",
+      "Website Url"
+    ],
+    "colors": [
+      "#2A3751",
+      "#FFFFFF",
+      "#FF482F",
+      "#FFFFFF",
+      "#1d2f52",
+      "#002570",
+      "#ff482f",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#ffffff",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#ff482f",
+      "#ff482f",
+      "#ffffff",
+      "#ff482f",
+      "#1d2f52",
+      "#ffffff",
+      "#ff482f",
+      "#f8f8f9",
+      "#1d2f52",
+      "#606a7c",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#1d2f52",
+      "#606a7c",
+      "#ffffff",
+      "#126bd1",
+      "#1d2f52",
+      "#606a7c",
+      "#f8f8f9",
+      "#ff482f",
+      "#ffffff",
+      "#a8afc1",
+      "#1d2f52",
+      "#1d2f52",
+      "#1d2f52",
+      "#606a7c",
+      "#1d2f52",
+      "#606a7c",
+      "#1d2f52",
+      "#606a7c",
+      "#2a3751",
+      "#002570",
+      "#ff482f",
+      "#a8afc1",
+      "#f8f8f9",
+      "#ffffff",
+      "#ffffff",
+      "#ea513c",
+      "#f8f8f9",
+      "#ffffff",
+      "#ffffff",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#f8f8f9",
+      "#ffffff",
+      "#ffffff",
+      "#f9f9f9",
+      "#2a302f",
+      "#FF482F",
+      "#FF482F",
+      "#000000",
+      "#f2f2f2",
+      "#00ce1b",
+      "#ededed",
+      "#000000",
+      "#00ce1b",
+      "#2a302f"
+    ]
+  },
+  "output": {
+    "text_transformations": [
+      {
+        "original": "\"[elementor-tag id=\\\"9763573\\\" name=\\\"current-date-time\\\" settings=\\\"%7B%22date_format%22%3A%22custom%22%2C%22custom_format%22%3A%22Y%22%2C%22before%22%3A%22Copyright%20%22%2C%22after%22%3A%22%20%C2%A9%20All%20rights%20Reserved.%20Design%20by%20Webmeccano%22%2C%22fallback%22%3A%222018%22%7D\\\"]\"",
+        "transformed": "The current year is displayed at the bottom of the page. Copyright © All rights Reserved. Design by Webmeccano."
+      },
+      {
+        "original": "\"Accounting & Bookkeeping Experts let's\"",
+        "transformed": "Fitness & Wellness Experts"
+      },
+      {
+        "original": "\"Elevate your business\"",
+        "transformed": "Elevate your fitness journey"
+      },
+      {
+        "original": "\"We will strive to meet all your business necessities and plans. You can rely on easy accessibility to our qualified staff and prompt solutions to your problems.\"",
+        "transformed": "We are committed to meeting all your fitness needs and goals. Count on our team of experts for easy access and quick solutions to enhance your experience."
+      },
+      {
+        "original": "\"Learn More\"",
+        "transformed": "Discover More"
+      },
+      {
+        "original": "\"Get Started\"",
+        "transformed": "\"Begin Your Journey\""
+      },
+      {
+        "original": "\"What we do\"",
+        "transformed": "\"Our Services\""
+      },
+      {
+        "original": "\"Comprehensive solutions when it comes to restructuring your business, raising capital, attracting partners or performing due-diligence. Use our knowledge to improve your decisions.\"",
+        "transformed": "\"Tailored Solutions for Business Restructuring, Capital Acquisition, Partner Attraction, and Due Diligence. Trust our expertise to enhance your strategies.\""
+      },
+      {
+        "original": "\"Our Expertise & Services\"",
+        "transformed": "\"Our Specializations & Offerings\""
+      },
+      {
+        "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+        "transformed": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\""
+      },
+      {
+        "original": "Business filings",
+        "transformed": "Membership Registration"
+      },
+      {
+        "original": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "transformed": "Sign up for exclusive membership benefits."
+      },
+      {
+        "original": "Consulting",
+        "transformed": "Personal Training"
+      },
+      {
+        "original": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "transformed": "Tailored Fitness Consultations"
+      },
+      {
+        "original": "Tax Advice",
+        "transformed": "Nutrition Guidance"
+      },
+      {
+        "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+        "transformed": "\"Welcome to our gym website, designed with a sleek black and red color scheme.\""
+      },
+      {
+        "original": "\"General Finance\"",
+        "transformed": "\"Gym Membership\""
+      },
+      {
+        "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit.\"",
+        "transformed": "\"Discover our state-of-the-art fitness center with a modern black and red theme.\""
+      },
+      {
+        "original": "\"We help your time and work for your money.\"",
+        "transformed": "\"Achieve your fitness goals with our expert guidance and support.\""
+      },
+      {
+        "original": "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\"",
+        "transformed": "\"Explore our fitness classes and services tailored to help you reach your full potential in a dynamic environment.\""
+      },
+      {
+        "original": "\"Hire Us\"",
+        "transformed": "\"Join Us\""
+      },
+      {
+        "original": "\"Business Partners\"",
+        "transformed": "\"Collaborate with Us\""
+      },
+      {
+        "original": "\"Our Reviews\"",
+        "transformed": "\"Client Testimonials\""
+      },
+      {
+        "original": "\"Review Name\"",
+        "transformed": "\"Client Name\""
+      },
+      {
+        "original": "\"Review Paragraph\"",
+        "transformed": "\"Client Feedback\""
+      },
+      {
+        "original": "\"Review Name\"",
+        "transformed": "\"Testimonial Title\""
+      },
+      {
+        "original": "\"Review Paragraph\"",
+        "transformed": "\"Testimonial Content\""
+      },
+      {
+        "original": "\"Review Name\"",
+        "transformed": "\"Testimonial Title\""
+      },
+      {
+        "original": "\"Review Paragraph\"",
+        "transformed": "\"Testimonial Content\""
+      },
+      {
+        "original": "\"Contact Us\"",
+        "transformed": "\"Get in Touch\""
+      },
+      {
+        "original": "\"Accounting & Bookkeeping Experts\"",
+        "transformed": "\"Fitness & Training Professionals\""
+      },
+      {
+        "original": "\"Tax and Accounting done with the utmost knowledge, Integrity, Trust, Passion and Security. Our Mission is to provide clients with personalized Tax accounting and Consulting Services\"",
+        "transformed": "\"Fitness and Nutrition services with a focus on expertise, trust, and passion. We are dedicated to offering personalized training and consultancy services.\""
+      },
+      {
+        "original": "\"Contact Us\"",
+        "transformed": "\"Get in Touch\""
+      },
+      {
+        "original": "\"+1 631-302-1945\"",
+        "transformed": "\"Phone: +1 631-302-1945\""
+      },
+      {
+        "original": "\"Learn how to get the most of the tax system for both corporate and individual income.\"",
+        "transformed": "\"Discover how to optimize your fitness journey for both group sessions and personal training.\""
+      },
+      {
+        "original": "\"Website Url\"",
+        "transformed": "\"Website Address\""
+      }
+    ],
+    "color_palette": {
+      "original_colors": [
+        "#2A3751",
+        "#FFFFFF",
+        "#FF482F",
+        "#1d2f52",
+        "#002570",
+        "#ff482f",
+        "#f8f8f9",
+        "#ffffff",
+        "#606a7c",
+        "#126bd1"
+      ],
+      "new_colors": [
+        "#4D7C5E",
+        "#FFFFFF",
+        "#E14B38",
+        "#5C3B7A",
+        "#A74F6D",
+        "#FF6B4A",
+        "#D7E3E3",
+        "#F2F2F2",
+        "#457B9D",
+        "#3D5878"
+      ]
+    },
+    "transformation_notes": "I chose these new colors to maintain a strong and energetic gym theme. The shades of green and red provide a vibrant and dynamic look, while the neutral tones of white and gray balance the palette."
+  }
+}
