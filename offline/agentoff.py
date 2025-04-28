@@ -76,6 +76,38 @@ class FixedElementorExtractor:
             'posts': 'blog'
         }
 
+    def _categorize_page(self, title_text: str) -> str:
+        """Categorize a page based on its title"""
+        title_lower = title_text.lower()
+        
+        # Map common page titles to categories
+        if any(word in title_lower for word in ['home', 'front', 'main', 'landing']):
+            return 'home'
+        elif any(word in title_lower for word in ['about', 'company', 'who we are', 'our story']):
+            return 'about'
+        elif any(word in title_lower for word in ['contact', 'reach', 'get in touch', 'location']):
+            return 'contact'
+        elif any(word in title_lower for word in ['service', 'what we do', 'offering']):
+            return 'services'
+        elif any(word in title_lower for word in ['portfolio', 'work', 'project', 'case']):
+            return 'portfolio'
+        elif any(word in title_lower for word in ['blog', 'news', 'article', 'post']):
+            return 'blog'
+        elif any(word in title_lower for word in ['shop', 'store', 'product']):
+            return 'shop'
+        elif any(word in title_lower for word in ['faq', 'help', 'support']):
+            return 'faq'
+        elif any(word in title_lower for word in ['team', 'staff', 'people']):
+            return 'team'
+        elif any(word in title_lower for word in ['pricing', 'plan', 'package']):
+            return 'pricing'
+        elif any(word in title_lower for word in ['testimonial', 'review', 'feedback']):
+            return 'testimonials'
+        elif any(word in title_lower for word in ['career', 'job', 'position']):
+            return 'careers'
+        else:
+            return 'general'
+
     def process_theme(self, xml_path_or_id: str) -> Tuple[str, List[Dict], List[Dict]]:
         """Process WordPress theme XML and store in Supabase"""
         theme_id = str(uuid.uuid4())
@@ -347,6 +379,85 @@ class FixedElementorExtractor:
         except Exception as e:
             print(f"Error processing theme: {e}")
             traceback.print_exc()
+            raise
+
+    def extract_content_only(self, xml_file: str) -> Tuple[List[Dict], List[Dict]]:
+        """Extract content from XML without creating a new theme record"""
+        print(f"Extracting content from {xml_file}...")
+        
+        try:
+            # Parse XML
+            tree = ET.parse(xml_file)
+            root = tree.getroot()
+            
+            # Initialize data structures
+            pages_data = []
+            sections_data = []
+            
+            # Process all items (pages)
+            items = root.findall(".//item")
+            
+            # Initialize section counter
+            section_id_counter = 1
+            
+            for item in items:
+                # Extract page information
+                title = item.find("title")
+                post_id = item.find(".//wp:post_id", self.namespaces)
+                post_type = item.find(".//wp:post_type", self.namespaces)
+                
+                if title is None or post_id is None:
+                    continue
+                    
+                title_text = title.text or "Untitled"
+                post_id_text = post_id.text
+                post_type_text = post_type.text if post_type is not None else "page"
+                
+                # Skip if not a page
+                if post_type_text != "page":
+                    continue
+                    
+                # Get page content
+                content = item.find(".//content:encoded", self.namespaces)
+                if content is None or not content.text:
+                    continue
+                    
+                # Extract page category from title
+                page_category = self._categorize_page(title_text)
+                
+                # Store page data
+                page_data = {
+                    "id": post_id_text,
+                    "title": title_text,
+                    "category": page_category,
+                    "content": content.text
+                }
+                
+                pages_data.append(page_data)
+                
+                # Extract Elementor sections
+                elementor_data = None
+                for meta in item.findall('wp:postmeta', self.namespaces):
+                    meta_key = meta.find('wp:meta_key', self.namespaces)
+                    meta_value = meta.find('wp:meta_value', self.namespaces)
+                    
+                    if meta_key is not None and meta_value is not None:
+                        if meta_key.text == '_elementor_data' and meta_value.text:
+                            try:
+                                elementor_data = json.loads(meta_value.text)
+                                sections = self._identify_sections(elementor_data, "", page_data["id"])  # Empty theme_id since we're not storing
+                                sections_data.extend(sections)
+                            except json.JSONDecodeError:
+                                continue
+            
+            print(f"Extracted {len(pages_data)} pages and {len(sections_data)} sections")
+            return pages_data, sections_data
+            
+        except ET.ParseError as e:
+            print(f"XML parsing error: {e}")
+            raise
+        except Exception as e:
+            print(f"Error extracting content: {e}")
             raise
 
     def _process_page(self, page_item: ET.Element, theme_id: str) -> Optional[Dict]:
@@ -659,4 +770,4 @@ async def upload_theme_xml(theme_id: str, file: UploadFile = File(...)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error uploading theme XML: {str(e)}")
 
-#usage 
+#usage
