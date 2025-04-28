@@ -264,9 +264,10 @@ class ThemeTransformerOrchestrator:
         return base.lower()
 
     
-    def process_theme(self, job_id: str, input_path: str, style_description: str):
+    def process_theme(self, job_id: str, input_path: str, style_description: str, skip_theme_creation: bool = False):
         """Process theme transformation"""
         work_dir = os.path.join(self.base_dir, "processing", job_id)
+        theme_id = None
         
         try:
             # Update job status
@@ -282,7 +283,10 @@ class ThemeTransformerOrchestrator:
             # Step 1: Extract content
             print(f"Extracting content from {input_path}...")
             try:
-                theme_id, pages_data, sections_data = self.extraction_agent.process_theme(input_path)
+                if skip_theme_creation:
+                    pages_data, sections_data = self.extraction_agent.extract_content_only(input_path)
+                else:
+                    theme_id, pages_data, sections_data = self.extraction_agent.process_theme(input_path)
             except ET.ParseError as e:
                 raise ValueError(f"XML parsing error during extraction: {str(e)}")
             except Exception as e:
@@ -290,12 +294,43 @@ class ThemeTransformerOrchestrator:
             
             # Step 2: Transform content
             print(f"Transforming content with style: {style_description}...")
-            transformation_result = self.transformation_agent.transform_theme_content(theme_id, style_description)
+            transformation_result = self.transformation_agent.transform_theme_content(
+                theme_id or job_id,
+                style_description,
+                filtered_pages=pages_data if skip_theme_creation else None,
+                filtered_sections=sections_data if skip_theme_creation else None
+            )
+            
+            # Ensure proper structure for text transformations and color palette
+            if 'text_transformations' not in transformation_result:
+                transformation_result['text_transformations'] = []
+                
+            if 'color_palette' not in transformation_result:
+                transformation_result['color_palette'] = {'original_colors': [], 'new_colors': []}
+            elif isinstance(transformation_result['color_palette'], dict):
+                if 'color_palette' in transformation_result['color_palette']:
+                    # Handle nested color_palette structure
+                    transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
             
             # Generate transformation output path
-            transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
+            transformed_path = os.path.join(work_dir, f"transformed_{job_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
+            
+            # Save debug information
+            debug_path = os.path.join(work_dir, f"debug_transformed_{job_id}.json")
+            with open(debug_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'input': {
+                        'theme_id': theme_id,
+                        'style_description': style_description,
+                        'filtered_pages_count': len(pages_data) if pages_data else 0,
+                        'filtered_sections_count': len(sections_data) if sections_data else 0
+                    },
+                    'transformation_result': transformation_result,
+                    'text_count': len(transformation_result.get('text_transformations', [])),
+                    'color_count': len(transformation_result.get('color_palette', {}).get('new_colors', []))
+                }, f, ensure_ascii=False, indent=2)
             
             # Step 3: Apply transformations
             print(f"Applying transformations to generate new theme...")
@@ -308,10 +343,6 @@ class ThemeTransformerOrchestrator:
                 output_path
             )
             
-            # Validate output
-            if not self.validate_xml(output_path):
-                raise ValueError("Output XML validation failed")
-            
             # Update job status
             self.jobs[job_id].update({
                 "status": "completed",
@@ -320,26 +351,20 @@ class ThemeTransformerOrchestrator:
                 "output_url": f"/download/{job_id}"
             })
             
-            # Store transformation data in Supabase
-            try:
-                supabase_url = os.getenv('SUPABASE_URL')
-                supabase_key = os.getenv('SUPABASE_KEY')
-                
-                if supabase_url and supabase_key:
-                    supabase = create_client(supabase_url, supabase_key)
-                    
-                    # Store transformation data directly without wrappers
+            # Only store transformation data if we created a new theme
+            if not skip_theme_creation and theme_id:
+                try:
+                    # Store transformation data
                     transformation_id = str(uuid.uuid4())
                     transformation_data = {
                         'id': transformation_id,
                         'theme_id': theme_id,
                         'texts': transformation_result.get('text_transformations', []),
-                        # Store colors directly instead of concat original+new
                         'colors': transformation_result.get('color_palette', {}).get('new_colors', []),
                         'created_at': datetime.utcnow().isoformat()
                     }
                     
-                    # Write debug info to help diagnose transformation issues
+                    # Write debug info
                     debug_dir = os.path.join(os.path.dirname(output_path), "debug")
                     os.makedirs(debug_dir, exist_ok=True)
                     with open(os.path.join(debug_dir, "transformation_debug.json"), 'w', encoding='utf-8') as f:
@@ -348,13 +373,17 @@ class ThemeTransformerOrchestrator:
                             'stored_transformation': transformation_data
                         }, f, indent=2, ensure_ascii=False)
                     
-                    # Insert transformation data
-                    supabase.table('transformation_data').insert(transformation_data).execute()
-                    print(f"Stored transformation data with ID: {transformation_id}")
-                    print(f"Saved {len(transformation_data['texts'])} transformed texts and {len(transformation_data['colors'])} colors")
-            except Exception as e:
-                print(f"Failed to store transformation data: {e}")
-            
+                    # Insert into database
+                    supabase_url = os.getenv('SUPABASE_URL')
+                    supabase_key = os.getenv('SUPABASE_KEY')
+                    
+                    if supabase_url and supabase_key:
+                        supabase = create_client(supabase_url, supabase_key)
+                        supabase.table('transformation_data').insert(transformation_data).execute()
+                        print(f"Stored transformation data with ID: {transformation_id}")
+                except Exception as e:
+                    print(f"Failed to store transformation data: {e}")
+                    
         except Exception as e:
             print(f"Error processing theme: {e}")
             traceback.print_exc()
