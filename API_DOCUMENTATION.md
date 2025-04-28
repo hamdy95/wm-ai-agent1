@@ -139,6 +139,32 @@ Download the transformed theme file after job completion.
 curl -X GET https://vectaraaa.onrender.com/download/your-job-id --output transformed_theme.xml
 ```
 
+### 8. Recreate Theme
+Recreate a theme by filtering unique pages and transforming content with a new style.
+
+**Endpoint:** `/recreate-theme`  
+**Method:** POST  
+**Content-Type:** application/json
+
+**Request Body:**
+```json
+{
+    "theme_id": "your-theme-id",
+    "style_description": "modern minimalist style with unique design elements"
+}
+```
+
+**Curl Command:**
+```bash
+curl -X POST https://vectaraaa.onrender.com/recreate-theme \
+  -H "Content-Type: application/json" \
+  -d '{
+    "theme_id": "fc85e373-e474-48bd-8383-503332bf0a77",
+    "style_description": "modern minimalist style with unique design elements"
+  }'
+```
+
+
 ## Response Formats
 
 ### Success Response Format
