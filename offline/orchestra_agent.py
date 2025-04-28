@@ -1201,6 +1201,87 @@ async def store_complete_theme(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error storing theme: {str(e)}")
 
+@app.post("/recreate-theme")
+async def recreate_theme(
+    request: RecreateThemeRequest,
+    background_tasks: BackgroundTasks
+):
+    """Recreate a theme by filtering unique pages and transforming content"""
+    try:
+        # Generate unique job ID
+        job_id = str(uuid.uuid4())
+        created_at = datetime.utcnow().isoformat()
+        
+        # Create job record
+        orchestrator.jobs[job_id] = {
+            'id': job_id,
+            'status': 'queued',
+            'created_at': created_at,
+            'source_theme_id': request.theme_id,
+            'style_description': request.style_description
+        }
+        
+        # Get theme content from Supabase
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_key = os.getenv('SUPABASE_KEY')
+        
+        if not supabase_url or not supabase_key:
+            raise HTTPException(status_code=500, detail="SUPABASE_URL and SUPABASE_KEY must be set in .env file")
+            
+        supabase = create_client(supabase_url, supabase_key)
+        
+        # Get theme content
+        theme_result = supabase.table('themes').select('*').eq('id', request.theme_id).execute()
+        if not theme_result.data:
+            raise HTTPException(status_code=404, detail=f"Theme with ID '{request.theme_id}' not found")
+        
+        theme_data = theme_result.data[0]
+        xml_content = theme_data.get('content')
+        
+        if not xml_content:
+            raise HTTPException(status_code=400, detail="No XML content found in theme")
+        
+        # Create work directory
+        work_dir = os.path.join(orchestrator.base_dir, "processing", job_id)
+        os.makedirs(work_dir, exist_ok=True)
+        
+        # Save original XML to temporary file
+        input_path = os.path.join(work_dir, f"input_{request.theme_id}.xml")
+        with open(input_path, "w", encoding="utf-8") as f:
+            f.write(xml_content)
+        
+        # Filter the XML to keep only unique pages
+        filtered_xml = orchestrator.filter_unique_pages(xml_content)
+        
+        # Save filtered XML
+        filtered_path = os.path.join(work_dir, f"filtered_{request.theme_id}.xml")
+        with open(filtered_path, "w", encoding="utf-8") as f:
+            f.write(filtered_xml)
+        
+        # Process the filtered theme in background
+        background_tasks.add_task(
+            orchestrator.process_theme,
+            job_id,
+            filtered_path,
+            request.style_description,
+            skip_theme_creation=True  # Don't create new theme record since we're filtering
+        )
+        
+        return TransformationResponse(
+            job_id=job_id,
+            status='queued',
+            created_at=created_at,
+            message='Theme recreation started'
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error recreating theme: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
