@@ -66,6 +66,10 @@ class ThemeIdTransformation(BaseModel):
     theme_id: str
     style_description: str
 
+class RecreateThemeRequest(BaseModel):
+    theme_id: str
+    style_description: Optional[str] = None
+
 # Add CDATA class for XML
 class CDATA:
     """Helper class to handle CDATA sections in XML"""
@@ -150,6 +154,116 @@ class ThemeTransformerOrchestrator:
             print(f"Error validating XML: {str(e)}")
             return False
 
+    def filter_unique_pages(self, xml_content: str) -> str:
+        """Filter XML content to keep only one instance of each page type"""
+        try:
+            # Parse the XML content
+            root = ET.fromstring(xml_content)
+            
+            # Dictionary to store unique pages by normalized title
+            unique_pages = {}
+            excluded_pages = []
+            
+            # Find all items (pages)
+            items = root.findall(".//item")
+            print("\nStarting page filtering process...")
+            print("Found", len(items), "total pages in theme")
+            
+            # First pass: categorize pages
+            for item in items:
+                post_type = item.find(".//wp:post_type", namespaces={
+                    'wp': 'http://wordpress.org/export/1.2/'
+                })
+                
+                # Skip if not a page
+                if post_type is None or post_type.text != 'page':
+                    continue
+                    
+                title = item.find("title")
+                if title is not None and title.text:
+                    title_text = title.text.strip()
+                    base_title = self._get_base_title(title_text)  # Get base title without numbers
+                    
+                    content = item.find(".//content:encoded", namespaces={
+                        'content': 'http://purl.org/rss/1.0/modules/content/'
+                    })
+                    content_length = len(content.text) if content is not None and content.text else 0
+                    
+                    print(f"\nAnalyzing page: {title_text}")
+                    print(f"Base title: {base_title}")
+                    print(f"Content length: {content_length} characters")
+                    
+                    if base_title not in unique_pages:
+                        print(f"✓ Selected '{title_text}' as first instance of '{base_title}' type")
+                        unique_pages[base_title] = {
+                            'item': item,
+                            'title': title_text,
+                            'content_length': content_length
+                        }
+                    else:
+                        # Compare content length with existing page
+                        existing_page = unique_pages[base_title]
+                        if content_length > existing_page['content_length']:
+                            print(f"↻ Replacing '{existing_page['title']}' with '{title_text}' (more content)")
+                            excluded_pages.append(existing_page['title'])
+                            unique_pages[base_title] = {
+                                'item': item,
+                                'title': title_text,
+                                'content_length': content_length
+                            }
+                        else:
+                            print(f"✗ Excluding '{title_text}' (keeping existing '{existing_page['title']}')")
+                            excluded_pages.append(title_text)
+            
+            # Create new XML with filtered pages
+            new_root = ET.Element(root.tag, root.attrib)
+            channel = ET.SubElement(new_root, "channel")
+            
+            # Copy channel metadata
+            for child in root.find("channel"):
+                if child.tag != "item":
+                    channel.append(ET.fromstring(ET.tostring(child)))
+            
+            # Add filtered pages
+            for page_data in unique_pages.values():
+                channel.append(ET.fromstring(ET.tostring(page_data['item'])))
+            
+            # Print summary
+            print("\nPage Filtering Summary:")
+            print("----------------------")
+            print(f"Total pages found: {len(items)}")
+            print(f"Unique page types: {len(unique_pages)}")
+            print(f"Pages excluded: {len(excluded_pages)}")
+            print("\nSelected Pages:")
+            for base_title, page_data in unique_pages.items():
+                print(f"- {page_data['title']} (type: {base_title})")
+            print("\nExcluded Pages:")
+            for title in excluded_pages:
+                print(f"- {title}")
+            
+            # Convert back to string
+            return ET.tostring(new_root, encoding='unicode', method='xml')
+            
+        except Exception as e:
+            print(f"Error filtering unique pages: {e}")
+            return xml_content
+
+    def _get_base_title(self, title: str) -> str:
+        """Extract base title by removing numbers and common suffixes"""
+        # Remove numbers and special characters from end of title
+        base = re.sub(r'\s*[-–_]\s*\d+$', '', title)
+        base = re.sub(r'\s+\d+$', '', base)
+        
+        # Remove common suffixes
+        base = re.sub(r'\s*[-–_]\s*(copy|duplicate|version|v\d+)$', '', base, flags=re.IGNORECASE)
+        
+        # Normalize spacing
+        base = ' '.join(base.split())
+        
+        # Make case insensitive
+        return base.lower()
+
+    
     def process_theme(self, job_id: str, input_path: str, style_description: str):
         """Process theme transformation"""
         work_dir = os.path.join(self.base_dir, "processing", job_id)
