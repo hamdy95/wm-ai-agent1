@@ -26,6 +26,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configure CORS
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 # Handle imports differently based on how script is run
 try:
     # When imported as a module
@@ -33,12 +43,14 @@ try:
     from offline.transformation import ContentTransformationAgent
     from offline.onepage_agent import OnePageSiteGenerator
     from offline.multipage_agent import MultiPageSiteGenerator
+    from offline.evaluator_agent import SectionEvaluator
 except ImportError:
     # When run directly
     from agentoff import FixedElementorExtractor, ThemeTransformByIdRequest
     from transformation import ContentTransformationAgent
     from onepage_agent import OnePageSiteGenerator
     from multipage_agent import MultiPageSiteGenerator
+    from evaluator_agent import SectionEvaluator
 
 # Define response models
 class TransformationResponse(BaseModel):
@@ -69,6 +81,10 @@ class ThemeIdTransformation(BaseModel):
 class RecreateThemeRequest(BaseModel):
     theme_id: str
     style_description: Optional[str] = None
+
+class EvaluateSectionsRequest(BaseModel):
+    theme_id: str
+    detailed_analysis: Optional[bool] = True
 
 # Add CDATA class for XML
 class CDATA:
@@ -124,22 +140,31 @@ class ThemeTransformerOrchestrator:
             from offline.transformation import ContentTransformationAgent
             from offline.onepage_agent import OnePageSiteGenerator
             from offline.multipage_agent import MultiPageSiteGenerator
+            from offline.evaluator_agent import SectionEvaluator
         except ImportError:
             # When run directly
             from agentoff import FixedElementorExtractor
             from transformation import ContentTransformationAgent
             from onepage_agent import OnePageSiteGenerator
             from multipage_agent import MultiPageSiteGenerator
+            from evaluator_agent import SectionEvaluator
         
         self.extraction_agent = FixedElementorExtractor()
         self.transformation_agent = ContentTransformationAgent()
         self.onepage_generator = OnePageSiteGenerator()
         self.multipage_generator = MultiPageSiteGenerator()
+        self.section_evaluator = SectionEvaluator()
         
         # Create work directories
         for dir_name in ["input", "processing", "output"]:
             dir_path = os.path.join(self.base_dir, dir_name)
             os.makedirs(dir_path, exist_ok=True)
+            
+        # Configure logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
 
     def validate_xml(self, file_path: str) -> bool:
         """Validate XML file structure"""
@@ -1070,6 +1095,10 @@ class ThemeStoreRequest(BaseModel):
     theme_name: str
     style_description: Optional[str] = None
 
+class SectionEvaluationRequest(BaseModel):
+    theme_id: str
+    detailed_analysis: Optional[bool] = True
+
 # Define request models for site generation
 class OnePageSiteRequest(BaseModel):
     query: str = Field(..., description="The description of sections to include in the site, e.g., 'hero, about, services, contact'")
@@ -1164,6 +1193,36 @@ async def generate_onepage_theme(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/evaluate/sections")
+async def evaluate_theme_sections(request: SectionEvaluationRequest):
+    """Evaluate and categorize all sections in a theme using enhanced Elementor data analysis"""
+    try:
+        # Log the request
+        logging.info(f"Received section evaluation request for theme ID: {request.theme_id}")
+        logging.info(f"Using enhanced Elementor data analysis for more accurate section categorization")
+        
+        # Validate theme ID
+        if not request.theme_id:
+            raise HTTPException(status_code=400, detail="Theme ID is required")
+            
+        # Evaluate sections
+        result = orchestrator.section_evaluator.evaluate_theme_sections(request.theme_id)
+        
+        # Add detailed analysis information to the response
+        result["detailed_analysis_used"] = request.detailed_analysis
+        result["evaluated_at"] = datetime.utcnow().isoformat()
+        
+        return JSONResponse(content=result)
+        
+    except ValueError as e:
+        logging.error(f"Value error in section evaluation: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error evaluating sections: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error evaluating sections: {str(e)}")
+        
 
 @app.post("/generate/multipage")
 async def generate_multipage_theme(
