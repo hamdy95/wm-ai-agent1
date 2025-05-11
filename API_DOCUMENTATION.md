@@ -198,4 +198,12 @@ curl -X POST https://vectaraaa.onrender.com/recreate-theme \
 - SUPABASE_URL
 - SUPABASE_KEY
 
+
+curl -X POST "https://vectaraaa.onrender.com/evaluate/sections" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "theme_id": "your-theme-id-here",
+    "detailed_analysis": true
+  }'
+
 Remember to replace placeholder values like `your-job-id` and `your-theme-id` with actual values when making requests.
