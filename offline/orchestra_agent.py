@@ -470,10 +470,36 @@ class ThemeTransformerOrchestrator:
             print(f"Applying style: {combined_query}...")
             transformation_result = self.transformation_agent.transform_theme_content(theme_id, combined_query)
             
+            # Ensure proper structure for text transformations and color palette
+            if 'text_transformations' not in transformation_result:
+                transformation_result['text_transformations'] = []
+                
+            if 'color_palette' not in transformation_result:
+                transformation_result['color_palette'] = {'original_colors': [], 'new_colors': []}
+            elif isinstance(transformation_result['color_palette'], dict):
+                if 'color_palette' in transformation_result['color_palette']:
+                    # Handle nested color_palette structure
+                    transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
+            
             # Save transformation
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
+                
+            # Save debug information
+            debug_path = os.path.join(work_dir, f"debug_transformed_{job_id}.json")
+            with open(debug_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'input': {
+                        'theme_id': theme_id,
+                        'style_description': style_description,
+                        'query': query,
+                        'combined_query': combined_query
+                    },
+                    'transformation_result': transformation_result,
+                    'text_count': len(transformation_result.get('text_transformations', [])),
+                    'color_count': len(transformation_result.get('color_palette', {}).get('new_colors', []))
+                }, f, ensure_ascii=False, indent=2)
             
             # Apply transformations
             output_path = os.path.join(self.base_dir, "output", f"{job_id}.xml")
@@ -560,10 +586,36 @@ class ThemeTransformerOrchestrator:
             print(f"Applying style: {combined_query}...")
             transformation_result = self.transformation_agent.transform_theme_content(theme_id, combined_query)
             
+            # Ensure proper structure for text transformations and color palette
+            if 'text_transformations' not in transformation_result:
+                transformation_result['text_transformations'] = []
+                
+            if 'color_palette' not in transformation_result:
+                transformation_result['color_palette'] = {'original_colors': [], 'new_colors': []}
+            elif isinstance(transformation_result['color_palette'], dict):
+                if 'color_palette' in transformation_result['color_palette']:
+                    # Handle nested color_palette structure
+                    transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
+            
             # Save transformation
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
+                
+            # Save debug information
+            debug_path = os.path.join(work_dir, f"debug_transformed_{job_id}.json")
+            with open(debug_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'input': {
+                        'theme_id': theme_id,
+                        'style_description': style_description,
+                        'query': query,
+                        'combined_query': combined_query
+                    },
+                    'transformation_result': transformation_result,
+                    'text_count': len(transformation_result.get('text_transformations', [])),
+                    'color_count': len(transformation_result.get('color_palette', {}).get('new_colors', []))
+                }, f, ensure_ascii=False, indent=2)
             
             # Apply transformations
             output_path = os.path.join(self.base_dir, "output", f"{job_id}.xml")
