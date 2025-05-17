@@ -242,6 +242,28 @@ class OnePageSiteGenerator:
         
         return rss
 
+    def _fix_white_text_colors(self, elementor_data, safe_color='#222222'):
+        """Recursively replace any white text color values with a safe default color."""
+        def fix_element(element):
+            if isinstance(element, dict):
+                # Fix text color in settings
+                settings = element.get('settings', {})
+                if isinstance(settings, dict):
+                    for key, value in settings.items():
+                        if isinstance(value, str) and 'color' in key.lower():
+                            val = value.strip().lower()
+                            if val in ['#fff', '#ffffff', 'white']:
+                                settings[key] = safe_color
+                # Recurse into children
+                if 'elements' in element and isinstance(element['elements'], list):
+                    for child in element['elements']:
+                        fix_element(child)
+            elif isinstance(element, list):
+                for item in element:
+                    fix_element(item)
+        fix_element(elementor_data)
+        return elementor_data
+
     def create_one_page_site(self, user_query: str, output_path: str) -> str:
         """Create a one-page WordPress site from the user query"""
         # Parse the user query to get requested sections
@@ -335,7 +357,9 @@ class OnePageSiteGenerator:
             try:
                 section_content = json.loads(section['content'])
                 if 'section_data' in section_content:
-                    elementor_data.append(section_content['section_data'])
+                    # Fix white text colors before adding
+                    fixed_section = self._fix_white_text_colors(section_content['section_data'])
+                    elementor_data.append(fixed_section)
             except Exception as e:
                 print(f"Error parsing section content for {section_type}: {e}")
         
@@ -392,4 +416,4 @@ def main():
         print(f"One-page site generation failed: {e}")
 
 if __name__ == "__main__":
-    main() 
+    main()
