@@ -27,11 +27,12 @@ class OnePageSiteGenerator:
         
         # Define section mapping
         self.section_mapping = {
-            'hero': ['hero', 'banner', 'header', 'main'],
+            'main': ['main', 'main section', 'main content'],
+            'hero': ['hero', 'banner', 'header'],
             'about': ['about', 'company', 'who we are', 'our story'],
             'services': ['services', 'what we do', 'offerings', 'solutions'],
             'features': ['features', 'benefits', 'advantages'],
-            'portfolio': ['portfolio', 'work', 'projects', 'gallery'],
+            'portfolio': ['portfolio', 'work', 'projects', 'gallery', 'case study', 'showcase'],
             'team': ['team', 'members', 'staff', 'our people'],
             'testimonials': ['testimonials', 'reviews', 'what clients say'],
             'pricing': ['pricing', 'plans', 'packages', 'subscriptions'],
@@ -39,7 +40,8 @@ class OnePageSiteGenerator:
             'faq': ['faq', 'questions', 'answers', 'help'],
             'cta': ['cta', 'call to action', 'sign up', 'join'],
             'clients': ['clients', 'partners', 'brands'],
-            'footer': ['footer', 'bottom']
+            'footer': ['footer', 'bottom'],
+            'map': ['map', 'google map', 'location', 'address', 'find us', 'directions', 'where we are']
         }
 
     def parse_user_query(self, query: str) -> List[str]:
@@ -72,15 +74,19 @@ class OnePageSiteGenerator:
                                                      len(available_sections)))
                 requested_sections.extend(additional_sections)
         
-        # Make sure we have at least one section (hero)
+        # Make sure we have at least one section (main or hero)
         if not requested_sections:
-            requested_sections.append('hero')
+            requested_sections.append('main')
         
-        # Order sections in a logical way (hero first, contact/footer last)
+        # Order sections in a logical way (main/hero first, contact/footer last)
         ordered_sections = []
         
-        # Hero always comes first
-        if 'hero' in requested_sections:
+        # Main always comes first if present
+        if 'main' in requested_sections:
+            ordered_sections.append('main')
+            requested_sections.remove('main')
+        # Otherwise hero comes first if present
+        elif 'hero' in requested_sections:
             ordered_sections.append('hero')
             requested_sections.remove('hero')
         
@@ -99,7 +105,7 @@ class OnePageSiteGenerator:
         # Footer always last
         if 'footer' in requested_sections:
             ordered_sections.append('footer')
-            
+        
         return ordered_sections
 
     def fetch_sections(self, section_types: List[str]) -> Dict[str, Any]:
@@ -264,8 +270,35 @@ class OnePageSiteGenerator:
         fix_element(elementor_data)
         return elementor_data
 
-    def create_one_page_site(self, user_query: str, output_path: str) -> str:
-        """Create a one-page WordPress site from the user query"""
+    def _apply_style_to_text(self, text: str, style_description: Optional[str]) -> str:
+        """Transform text to reflect the style description (simple prompt-based rewrite)."""
+        if not style_description or not text or not isinstance(text, str):
+            return text
+        # Simple heuristic: append a style hint, or inject style words if not present
+        # (For production, use an LLM or more advanced NLP)
+        style_hint = f" ({style_description})"
+        if style_description.lower() not in text.lower():
+            # Only append if not already present
+            return text.strip() + style_hint
+        return text
+
+    def _transform_section_texts(self, section_content: dict, style_description: Optional[str]) -> dict:
+        """Recursively apply style transformation to all text fields in section content."""
+        if isinstance(section_content, dict):
+            for k, v in section_content.items():
+                if isinstance(v, str):
+                    # Heuristic: likely text fields
+                    if k in ['title', 'heading', 'subtitle', 'description', 'text', 'content', 'label', 'button_text', 'cta_text', 'excerpt']:
+                        section_content[k] = self._apply_style_to_text(v, style_description)
+                elif isinstance(v, (dict, list)):
+                    section_content[k] = self._transform_section_texts(v, style_description)
+        elif isinstance(section_content, list):
+            for i, v in enumerate(section_content):
+                section_content[i] = self._transform_section_texts(v, style_description)
+        return section_content
+
+    def create_one_page_site(self, user_query: str, output_path: str, style_description: Optional[str] = None) -> str:
+        """Create a one-page WordPress site from the user query, applying style-aware text transformation."""
         # Parse the user query to get requested sections
         section_types = self.parse_user_query(user_query)
         print(f"Identified section types: {section_types}")
@@ -357,6 +390,9 @@ class OnePageSiteGenerator:
             try:
                 section_content = json.loads(section['content'])
                 if 'section_data' in section_content:
+                    # Apply style transformation to text fields
+                    if style_description:
+                        section_content['section_data'] = self._transform_section_texts(section_content['section_data'], style_description)
                     # Fix white text colors before adding
                     fixed_section = self._fix_white_text_colors(section_content['section_data'])
                     elementor_data.append(fixed_section)
