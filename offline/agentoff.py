@@ -297,7 +297,8 @@ class FixedElementorExtractor:
                         if page_data.get('elementor_data'):
                             try:
                                 elementor_data = json.loads(page_data['elementor_data'])
-                                sections = self._identify_sections(elementor_data, theme_id, page_data['id'])
+                                is_home_page = page_data.get('category', '').lower() == 'home'
+                                sections = self._identify_sections(elementor_data, theme_id, page_data['id'], is_home_page=is_home_page)
                                 sections_data.extend(sections)
                             except json.JSONDecodeError:
                                 continue
@@ -445,7 +446,8 @@ class FixedElementorExtractor:
                         if meta_key.text == '_elementor_data' and meta_value.text:
                             try:
                                 elementor_data = json.loads(meta_value.text)
-                                sections = self._identify_sections(elementor_data, "", page_data["id"])  # Empty theme_id since we're not storing
+                                is_home_page = page_category.lower() == 'home'
+                                sections = self._identify_sections(elementor_data, "", page_data["id"], is_home_page=is_home_page)
                                 sections_data.extend(sections)
                             except json.JSONDecodeError:
                                 continue
@@ -510,8 +512,8 @@ class FixedElementorExtractor:
             'created_at': datetime.utcnow().isoformat()
         }
 
-    def _identify_sections(self, elementor_data: Any, theme_id: str, page_id: str) -> List[Dict]:
-        """Identify sections from Elementor data"""
+    def _identify_sections(self, elementor_data: Any, theme_id: str, page_id: str, is_home_page: bool = False) -> List[Dict]:
+        """Identify sections from Elementor data. If is_home_page, first section is 'main'."""
         sections = []
         first_section = True
         
@@ -520,7 +522,7 @@ class FixedElementorExtractor:
             
             if not isinstance(element, dict):
                 return
-                
+            
             if element.get('elType') == 'section':
                 section_id = element.get('id')
                 section_type = None
@@ -535,28 +537,39 @@ class FixedElementorExtractor:
                                 section_type = widget_type
                             section_content.append(widget)
                 
-                # Special handling for hero section
+                # Special handling for first section of home page
                 if first_section:
                     first_section = False
-                    # Only create hero section if it's the first section
-                    sections.append({
-                        'id': str(uuid.uuid4()),
-                        'theme_id': theme_id,
-                        
-                        'category': 'hero',
-                        'content': json.dumps({
-                            'section_data': element,
-                            'widgets': section_content
-                        }),
-                        'created_at': datetime.utcnow().isoformat()
-                    })
+                    if is_home_page:
+                        sections.append({
+                            'id': str(uuid.uuid4()),
+                            'theme_id': theme_id,
+                            'page_id': page_id,
+                            'category': 'main',
+                            'content': json.dumps({
+                                'section_data': element,
+                                'widgets': section_content
+                            }),
+                            'created_at': datetime.utcnow().isoformat()
+                        })
+                    else:
+                        sections.append({
+                            'id': str(uuid.uuid4()),
+                            'theme_id': theme_id,
+                            'page_id': page_id,
+                            'category': 'hero',
+                            'content': json.dumps({
+                                'section_data': element,
+                                'widgets': section_content
+                            }),
+                            'created_at': datetime.utcnow().isoformat()
+                        })
                 else:
-                    # For non-hero sections, use the original logic
                     if section_type:
                         sections.append({
                             'id': str(uuid.uuid4()),
                             'theme_id': theme_id,
-                          
+                            'page_id': page_id,
                             'category': section_type,
                             'content': json.dumps({
                                 'section_data': element,
