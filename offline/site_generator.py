@@ -29,7 +29,7 @@ def generate_one_page_site(query: str, output_file: Optional[str] = None, style_
         start_time = time.time()
         
         # Generate the site
-        generated_path = generator.create_one_page_site(query, output_file)
+        generated_path = generator.create_one_page_site(query, output_file, style_description)
         
         generation_time = time.time() - start_time
         print(f"  ✓ Site generation completed in {generation_time:.2f} seconds")
@@ -108,4 +108,4 @@ def main():
     print("You can now import this XML file into WordPress.")
 
 if __name__ == "__main__":
-    main() 
+    main()
