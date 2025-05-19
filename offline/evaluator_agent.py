@@ -38,44 +38,44 @@ class SectionEvaluator:
         ]
     
     def evaluate_theme_sections(self, theme_id: str) -> Dict[str, Any]:
-        """Evaluate all sections in a theme and update their categories"""
-        # Fetch all sections for the theme
+        """Evaluate all sections in a theme and update their categories, except 'main' sections (case-insensitive, trimmed)."""
         try:
             result = self.supabase.table('sections').select('*').eq('theme_id', theme_id).execute()
             if not result.data:
                 raise ValueError(f"No sections found for theme ID: {theme_id}")
-            
             sections = result.data
             print(f"Found {len(sections)} sections to evaluate for theme ID: {theme_id}")
             print("Using enhanced section analysis with complete Elementor data")
-            
-            # Process each section
             evaluation_results = []
             for section in sections:
                 try:
                     section_id = section.get('id')
                     current_category = section.get('category')
                     content = section.get('content')
-                    
-                    # Skip if no content
+                    # Skip if no content or if section is 'main' (case-insensitive, trimmed)
                     if not content:
                         print(f"Skipping section {section_id} - no content")
                         continue
-                    
+                    if current_category and str(current_category).strip().lower() == 'main':
+                        print(f"Skipping section {section_id} - category is 'main' (no evaluation, no update)")
+                        evaluation_results.append({
+                            'section_id': section_id,
+                            'old_category': current_category,
+                            'new_category': current_category,
+                            'updated': False,
+                            'skipped_main': True
+                        })
+                        continue
                     print(f"\nAnalyzing section {section_id}:")
                     print(f"Current category: {current_category}")
                     print(f"Using complete Elementor data for analysis")
-                    
                     # Evaluate the section with complete Elementor data
                     new_category = self._evaluate_section_content(content, current_category)
-                    
-                    # Update the section if category changed
                     if new_category != current_category:
                         self._update_section_category(section_id, new_category)
                         print(f"✓ Updated section {section_id} category from '{current_category}' to '{new_category}'")
                     else:
                         print(f"✓ Section {section_id} category remains '{current_category}'")
-                    
                     evaluation_results.append({
                         'section_id': section_id,
                         'old_category': current_category,
@@ -88,8 +88,6 @@ class SectionEvaluator:
                         'section_id': section.get('id'),
                         'error': str(e)
                     })
-            
-            # Return summary of changes
             return {
                 'theme_id': theme_id,
                 'total_sections': len(sections),
@@ -97,35 +95,18 @@ class SectionEvaluator:
                 'sections_updated': sum(1 for r in evaluation_results if r.get('updated', False)),
                 'evaluation_results': evaluation_results
             }
-            
         except Exception as e:
             print(f"Error evaluating theme sections: {e}")
             return {
                 'theme_id': theme_id,
                 'error': str(e)
             }
-    
+
     def _evaluate_section_content(self, content_json: str, current_category: str) -> str:
-        """Evaluate section content using GPT-4o to determine its category"""
+        """Evaluate section content using GPT-4o to determine its category, with special prompt for non-hero."""
         try:
-            # Prepare prompt for GPT-4o with the complete Elementor data
             prompt = f"""
-            You are an expert at analyzing WordPress Elementor sections. 
-            I'll provide you with the complete Elementor data for a section, and you need to categorize it.
-            
-            The possible categories are: {', '.join(self.section_categories)}
-            
-            Current category: {current_category}
-            
-            Complete Elementor data for the section:
-            {content_json}
-            
-            Based on this complete Elementor data, what category best describes this section?
-            Analyze the structure, widgets, content, and purpose of this section.
-            Respond with ONLY the category name, nothing else.
-            """
-            
-            # Call GPT-4o API
+            You are an expert at analyzing WordPress Elementor sections.\n\nI'll provide you with the complete Elementor data for a section, and you need to categorize it.\n\nThe possible categories are: {', '.join(self.section_categories)}\n\nCurrent category: {current_category}\n\nIMPORTANT: All sections you are given are NOT hero sections. Even if the layout looks like a hero/banner, you must use the content to determine the true category (for example, contact us, about, etc).\n\nComplete Elementor data for the section:\n{content_json}\n\nBased on this complete Elementor data, what category best describes this section?\nAnalyze the structure, widgets, content, and purpose of this section.\nRespond with ONLY the category name, nothing else.\n"""
             response = openai.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -135,23 +116,15 @@ class SectionEvaluator:
                 temperature=0.3,
                 max_tokens=50
             )
-            
-            # Extract the category from the response
             category = response.choices[0].message.content
-            
-            # Validate the category
             if category in self.section_categories:
                 return category
             else:
-                # Try to match with closest category
                 for valid_category in self.section_categories:
                     if valid_category in category:
                         return valid_category
-                
-                # Default to current category if no match
                 print(f"Invalid category detected: '{category}', keeping current: '{current_category}'")
                 return current_category
-                
         except Exception as e:
             print(f"Error evaluating section content: {e}")
             return current_category
