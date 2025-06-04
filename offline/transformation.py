@@ -2,7 +2,7 @@ import datetime
 import json
 from openai import OpenAI
 import re
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -10,6 +10,7 @@ import random
 import uuid
 import traceback
 import html
+from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping
 
 class ContentTransformationAgent:
     """Agent responsible for transforming extracted content using GPT-4"""
@@ -188,6 +189,7 @@ class ContentTransformationAgent:
                         3. Maintaining similar length and structure
                         4. Making content relevant to the requested style/business type
                         5. Keeping function words (buttons, labels, etc.) concise and action-oriented
+                        6. prevent any special characters from being used in the transformed text
                         Format: For each text return exactly:
                         ORIGINAL: [original text]
                         NEW: [transformed text]"""
@@ -207,9 +209,9 @@ class ContentTransformationAgent:
                 
                 try:
                     response = self.client.chat.completions.create(
-                        model="gpt-3.5-turbo-0125",
+                        model="gpt-4o",
                         messages=messages,
-                        temperature=0.7,
+                        temperature=0.2,
                         max_tokens=2048
                     )
                     
@@ -259,65 +261,38 @@ class ContentTransformationAgent:
             }
 
     def _transform_colors(self, colors: List[str], style_description: str) -> Dict:
-        """Transform colors according to style description"""
+        """Transform colors according to style description using color theory instead of GPT"""
         try:
             # Remove duplicates while preserving order
             unique_colors = []
             [unique_colors.append(c) for c in colors if c not in unique_colors]
             
-            messages = [
-                {
-                    "role": "system",
-                    "content": """You are a color palette generator for WordPress themes.
-                    Generate a new professional color scheme based on the style description.
-                    Return exactly 5-7 hex colors that work well together.
-                    Format the response exactly as:
-                    NEW COLORS: [list of hex codes]
-                    NOTES: [brief explanation of color choices]"""
-                },
-                {
-                    "role": "user",
-                    "content": f"""Create a new color palette for: {style_description}
-
-                    Current colors: {json.dumps(unique_colors)}
-                    
-                    Return new hex colors that match the style.
-                    Must include primary, secondary, accent, text, and background colors."""
-                }
-            ]
+            print(f"Transforming {len(unique_colors)} colors based on style description: {style_description}")
             
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo-0125",
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1024
-            )
+            # Create color mapping using our new color utilities
+            color_map, palette = create_color_mapping(unique_colors, style_description)
             
-            response_text = response.choices[0].message.content
+            # Format the result in the expected structure for compatibility
+            new_colors = [color_map.get(color, color) for color in unique_colors]
             
-            # Extract new colors
-            new_colors = re.findall(r'#[0-9a-fA-F]{6}\b', response_text)
-            
-            # Extract notes
-            notes = ""
-            notes_match = re.search(r'NOTES:\s*(.*?)(?=$|\n\n)', response_text, re.DOTALL)
-            if notes_match:
-                notes = notes_match.group(1).strip()
-            
-            # Ensure we have enough colors
-            while len(new_colors) < len(unique_colors):
-                new_colors.append(new_colors[len(new_colors) % len(new_colors)] if new_colors else "#000000")
+            # Generate notes about the color palette
+            notes = f"Color palette generated based on '{style_description}'. "
+            notes += f"Primary color extracted and used to generate a harmonious palette with "
+            notes += f"complementary, analogous, and monochromatic variations. "
+            notes += f"Palette includes {len(palette)} colors mapped to appropriate Elementor elements."
             
             return {
                 "color_palette": {
                     "original_colors": unique_colors,
-                    "new_colors": new_colors[:len(unique_colors)]  # Match original length
+                    "new_colors": new_colors
                 },
-                "transformation_notes": notes
+                "transformation_notes": notes,
+                "full_palette": palette  # Include the full palette for reference
             }
             
         except Exception as e:
             print(f"Error transforming colors: {e}")
+            traceback.print_exc()
             return {
                 "color_palette": {
                     "original_colors": colors,
