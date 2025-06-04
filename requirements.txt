@@ -11,3 +11,4 @@ typing-extensions==4.8.0
 xmltodict==0.13.0
 httpx
 uuid==1.30 
+python-unsplash>=1.0.0
