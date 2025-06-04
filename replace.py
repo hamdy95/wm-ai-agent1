@@ -24,7 +24,7 @@ except ImportError:
 IMAGE_AGENT_AVAILABLE = False
 try:
     # First try direct import after adding the path
-    from image_agent import get_image_for_element
+    from offline.image_agent import get_image_for_element
     # Check if required environment variables are set
     if os.getenv("UNSPLASH_ACCESS_KEY") and os.getenv("OPENAI_API_KEY"):
         IMAGE_AGENT_AVAILABLE = True
