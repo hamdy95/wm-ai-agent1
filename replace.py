@@ -34,7 +34,7 @@ try:
 except ImportError:
     try:
         # Fall back to qualified import
-        from offline.image_agent import get_image_for_element
+        from image_agent import get_image_for_element
         # Check if required environment variables are set
         if os.getenv("UNSPLASH_ACCESS_KEY") and os.getenv("OPENAI_API_KEY"):
             IMAGE_AGENT_AVAILABLE = True
