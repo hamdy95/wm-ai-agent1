@@ -9,6 +9,21 @@ from supabase import create_client, Client
 from datetime import datetime
 from dotenv import load_dotenv
 
+# Import color utilities for better color generation
+try:
+    from color_utils import extract_color_from_description, generate_color_palette as generate_smart_palette, map_colors_to_elementor
+    # Define a fallback for create_accessible_text_colors if it doesn't exist
+    def create_accessible_text_colors(palette):
+        # Simple fallback that returns black and white text colors
+        return {
+            'text_on_primary': (255, 255, 255),  # White text on primary
+            'text_on_light': (0, 0, 0),          # Black text on light backgrounds
+            'text_on_dark': (255, 255, 255)       # White text on dark backgrounds
+        }
+    print("Successfully imported color_utils with function adaptations.")
+except ImportError:
+    print("Warning: Could not import color_utils. Using fallback color method.")
+
 class OnePageSiteGenerator:
     """Agent that creates one-page websites by selecting sections from the database"""
     
@@ -269,6 +284,85 @@ class OnePageSiteGenerator:
                     fix_element(item)
         fix_element(elementor_data)
         return elementor_data
+        
+    def _apply_color_palette(self, elementor_data, style_description):
+        """Apply a color palette to the elementor data based on the style description."""
+        # Check if we have the color_utils module available
+        if 'extract_color_from_description' not in globals():
+            print("Color utilities not available, skipping color palette application")
+            return elementor_data
+            
+        try:
+            # Extract primary color from style description
+            primary_color = extract_color_from_description(style_description)
+            print(f"Extracted primary color: {primary_color} from '{style_description}'")
+            
+            # Generate a color palette based on the primary color
+            palette = generate_smart_palette(primary_color)
+            print(f"Generated smart color palette with {len(palette)} colors")
+            
+            # Generate text colors for accessibility
+            text_colors = create_accessible_text_colors(palette)
+            print(f"Generated accessible text colors for the palette")
+            
+            # Map the palette to Elementor properties
+            elementor_color_map = map_colors_to_elementor(palette, text_colors)
+            print(f"Mapped {len(elementor_color_map)} Elementor properties to colors")
+            
+            # Apply the colors to the Elementor data
+            def apply_colors(element):
+                if isinstance(element, dict):
+                    # Apply colors to settings
+                    settings = element.get('settings', {})
+                    if isinstance(settings, dict):
+                        for key, value in list(settings.items()):
+                            # If this is a color property and we have a mapping for it
+                            if key in elementor_color_map:
+                                # Don't replace white backgrounds
+                                if 'background' in key.lower() and isinstance(value, str):
+                                    val = value.strip().lower()
+                                    if val in ['#fff', '#ffffff', 'white']:
+                                        continue
+                                # Apply the mapped color
+                                settings[key] = elementor_color_map[key]
+                            # For other color properties, try to match by type
+                            elif isinstance(value, str) and re.match(r'^#[0-9A-Fa-f]{3,6}$', value):
+                                # Apply color based on property name patterns
+                                if 'background' in key.lower() and not any(x in key.lower() for x in ['hover', 'overlay']):
+                                    # Skip white backgrounds
+                                    if value.lower() not in ['#fff', '#ffffff']:
+                                        settings[key] = elementor_color_map.get('background_color', value)
+                                elif 'title' in key.lower() or 'heading' in key.lower():
+                                    settings[key] = elementor_color_map.get('title_color', value)
+                                elif any(x in key.lower() for x in ['text', 'content', 'description']):
+                                    settings[key] = elementor_color_map.get('description_color', value)
+                                elif 'button' in key.lower() and 'background' in key.lower():
+                                    settings[key] = elementor_color_map.get('button_background_color', value)
+                                elif 'button' in key.lower() and 'text' in key.lower():
+                                    settings[key] = elementor_color_map.get('button_text_color', value)
+                                elif 'icon' in key.lower():
+                                    settings[key] = elementor_color_map.get('icon_color', value)
+                                elif 'border' in key.lower():
+                                    settings[key] = elementor_color_map.get('border_color', value)
+                    
+                    # Recurse into children
+                    if 'elements' in element and isinstance(element['elements'], list):
+                        for child in element['elements']:
+                            apply_colors(child)
+                elif isinstance(element, list):
+                    for item in element:
+                        apply_colors(item)
+            
+            # Apply colors to the Elementor data
+            apply_colors(elementor_data)
+            print("Applied color palette to Elementor data")
+            
+            return elementor_data
+        except Exception as e:
+            print(f"Error applying color palette: {e}")
+            import traceback
+            traceback.print_exc()
+            return elementor_data
 
     def _apply_style_to_text(self, text: str, style_description: Optional[str]) -> str:
         """Transform text to reflect the style description (simple prompt-based rewrite)."""
@@ -393,7 +487,13 @@ class OnePageSiteGenerator:
                     # Apply style transformation to text fields
                     if style_description:
                         section_content['section_data'] = self._transform_section_texts(section_content['section_data'], style_description)
-                    # Fix white text colors before adding
+                    
+                    # Apply color palette based on style description
+                    if style_description:
+                        # First apply our new color palette
+                        section_content['section_data'] = self._apply_color_palette(section_content['section_data'], style_description)
+                    
+                    # Fix white text colors before adding (as a fallback)
                     fixed_section = self._fix_white_text_colors(section_content['section_data'])
                     elementor_data.append(fixed_section)
             except Exception as e:
