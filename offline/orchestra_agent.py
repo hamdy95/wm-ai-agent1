@@ -628,9 +628,14 @@ class ThemeTransformerOrchestrator:
             })
             # Save the palette and mapping in the transformation_result for later use
             if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
-                transformation_result['full_palette'] = self.multipage_generator.generated_palette
-                transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
-                transformation_result['style_description'] = self.multipage_generator.generated_style_description
+                if self.multipage_generator.generated_palette is not None and self.multipage_generator.generated_mapping is not None:
+                    transformation_result['full_palette'] = self.multipage_generator.generated_palette
+                    transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
+                    transformation_result['style_description'] = self.multipage_generator.generated_style_description
+                else:
+                    print("WARNING: Palette or mapping is None, not saving to transformation_result.")
+            else:
+                print("WARNING: multipage_generator does not have generated_palette or generated_mapping attributes.")
             print(f"Multi-page site generation completed successfully! Output: {output_path}")
         except Exception as e:
             print(f"Error generating multi-page site: {e}")
