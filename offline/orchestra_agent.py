@@ -44,6 +44,7 @@ try:
     from offline.onepage_agent import OnePageSiteGenerator
     from offline.multipage_agent import MultiPageSiteGenerator
     from offline.evaluator_agent import SectionEvaluator
+    from offline.color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, generate_color_palette_with_gpt4o
 except ImportError:
     # When run directly
     from agentoff import FixedElementorExtractor, ThemeTransformByIdRequest
@@ -51,6 +52,7 @@ except ImportError:
     from onepage_agent import OnePageSiteGenerator
     from multipage_agent import MultiPageSiteGenerator
     from evaluator_agent import SectionEvaluator
+    from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, generate_color_palette_with_gpt4o
 
 # Define response models
 class TransformationResponse(BaseModel):
@@ -89,6 +91,14 @@ class RecreateThemeRequest(BaseModel):
 class EvaluateSectionsRequest(BaseModel):
     theme_id: str
     detailed_analysis: Optional[bool] = True
+
+# New request model for color mapping API
+class ColorMappingRequest(BaseModel):
+    job_id: str
+
+# New request model for page information API
+class PageInfoRequest(BaseModel):
+    job_id: str
 
 # Add CDATA class for XML
 class CDATA:
@@ -616,6 +626,11 @@ class ThemeTransformerOrchestrator:
                 "output_url": f"/download/{job_id}",
                 "job_type": "multi_page_site"
             })
+            # Save the palette and mapping in the transformation_result for later use
+            if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
+                transformation_result['full_palette'] = self.multipage_generator.generated_palette
+                transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
+                transformation_result['style_description'] = self.multipage_generator.generated_style_description
             print(f"Multi-page site generation completed successfully! Output: {output_path}")
         except Exception as e:
             print(f"Error generating multi-page site: {e}")
@@ -1146,6 +1161,110 @@ async def recreate_theme(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/color-mapping")
+async def get_color_mapping(request: ColorMappingRequest):
+    """Get the Elementor color properties mapping for a job"""
+    try:
+        # Check if job exists
+        if request.job_id not in orchestrator.jobs:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        job = orchestrator.jobs[request.job_id]
+        
+        # Check if job has style_description
+        if 'style_description' not in job:
+            raise HTTPException(status_code=400, detail="Job does not have style information")
+        
+        style_description = job['style_description']
+        
+        # Generate color palette and mapping using GPT-4o if available
+        try:
+            # First try to generate a palette and mapping with GPT-4o
+            palette, custom_mapping = generate_color_palette_with_gpt4o(style_description)
+            # Map colors to Elementor properties using custom mapping if available
+            elementor_colors = map_colors_to_elementor(palette, custom_mapping)
+        except Exception as e:
+            # Fall back to algorithmic method if GPT-4o fails
+            logging.warning(f"Falling back to algorithmic color palette generation: {str(e)}")
+            primary_color = extract_color_from_description(style_description)
+            palette = generate_color_palette(primary_color)
+            elementor_colors = map_colors_to_elementor(palette)
+        
+        return JSONResponse(content={
+            "job_id": request.job_id,
+            "style_description": style_description,
+            "elementor_colors": elementor_colors
+        })
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error getting color mapping: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error getting color mapping: {str(e)}")
+
+@app.post("/page-info")
+async def get_page_info(request: PageInfoRequest):
+    """Get page IDs and slugs for a job"""
+    try:
+        # Check if job exists
+        if request.job_id not in orchestrator.jobs:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        job = orchestrator.jobs[request.job_id]
+        
+        # Check if job has completed
+        if job['status'] != 'completed':
+            raise HTTPException(status_code=400, detail="Job has not completed yet")
+        
+        # Determine if it's a one-page or multi-page site
+        job_type = job.get('job_type', 'unknown')
+        
+        # Construct the output path based on job ID
+        output_path = os.path.join(orchestrator.base_dir, "output", f"{request.job_id}.xml")
+        if not os.path.exists(output_path):
+            raise HTTPException(status_code=404, detail="Output file not found")
+        
+        # Parse the XML to extract page information
+        tree = ET.parse(output_path)
+        root = tree.getroot()
+        
+        # Find all items (pages)
+        items = root.findall(".//item")
+        
+        # Extract page information
+        pages_info = []
+        for item in items:
+            # Get post type
+            post_type = item.find("./wp:post_type", {"wp": "http://wordpress.org/export/1.2/"})
+            if post_type is not None and post_type.text == "page":
+                # Get page ID
+                post_id = item.find("./wp:post_id", {"wp": "http://wordpress.org/export/1.2/"})
+                # Get page slug (post_name)
+                post_name = item.find("./wp:post_name", {"wp": "http://wordpress.org/export/1.2/"})
+                # Get page title
+                title = item.find("./title")
+                
+                if post_id is not None and post_name is not None:
+                    pages_info.append({
+                        "id": post_id.text,
+                        "slug": post_name.text,
+                        "title": title.text if title is not None else ""
+                    })
+        
+        return JSONResponse(content={
+            "job_id": request.job_id,
+            "job_type": job_type,
+            "pages": pages_info
+        })
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error getting page information: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error getting page information: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
