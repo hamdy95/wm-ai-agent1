@@ -538,6 +538,11 @@ class MultiPageSiteGenerator:
         palette, custom_mapping = generate_color_palette_with_gpt4o(style_description)
         print(f"[DEBUG] Generated color palette with GPT-4o once for all pages")
 
+        # Store the palette and mapping in a dict for later use in transformation data
+        self.generated_palette = palette
+        self.generated_mapping = custom_mapping
+        self.generated_style_description = style_description
+
         page_id = 1
         for page_type in page_types:
             if page_type in selected_pages:
