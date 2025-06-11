@@ -538,7 +538,9 @@ class MultiPageSiteGenerator:
         palette, custom_mapping = generate_color_palette_with_gpt4o(style_description)
         print(f"[DEBUG] Generated color palette with GPT-4o once for all pages")
 
-        # Store the palette and mapping in a dict for later use in transformation data
+        # Ensure palette and mapping are not None
+        if palette is None or custom_mapping is None:
+            print("ERROR: Palette or mapping is None after GPT-4o call!")
         self.generated_palette = palette
         self.generated_mapping = custom_mapping
         self.generated_style_description = style_description
