@@ -8,6 +8,7 @@ import random
 from supabase import create_client, Client
 from datetime import datetime
 from dotenv import load_dotenv
+from offline.color_utils import generate_color_palette_with_gpt4o
 
 # Import color utilities for better color generation
 try:
@@ -261,8 +262,9 @@ class MultiPageSiteGenerator:
         
         return rss
 
-    def add_page_to_template(self, channel: ET.Element, page_type: str, page_data: Dict[str, Any], page_id: int, style_description: str = None) -> None:
+    def add_page_to_template(self, channel: ET.Element, page_type: str, page_data: Dict[str, Any], page_id: int, style_description: str = None, palette=None, custom_mapping=None) -> None:
         """Add a page to the XML template"""
+        print(f"[DEBUG] add_page_to_template for '{page_type}' with style_description: '{style_description}'")
         # Create page item
         item = ET.SubElement(channel, 'item')
         
@@ -349,7 +351,7 @@ class MultiPageSiteGenerator:
                     parsed_data = json.loads(elementor_data)
                     
                     # Apply our color palette
-                    modified_data = self._apply_color_palette(parsed_data, style_description)
+                    modified_data = self._apply_color_palette(parsed_data, style_description, palette, custom_mapping)
                     
                     # Convert back to string
                     elementor_data = json.dumps(modified_data)
@@ -444,29 +446,23 @@ class MultiPageSiteGenerator:
         meta_value = ET.SubElement(meta_order, '{http://wordpress.org/export/1.2/}meta_value')
         meta_value.text = str(menu_order)
 
-    def _apply_color_palette(self, elementor_data, style_description):
-        """Apply a color palette to the elementor data based on the style description."""
-        # Check if we have the color_utils module available
-        if 'extract_color_from_description' not in globals():
-            print("Color utilities not available, skipping color palette application")
-            return elementor_data
-            
+    def _apply_color_palette(self, elementor_data, style_description, palette=None, custom_mapping=None):
+        print(f"[DEBUG] _apply_color_palette called with style_description: '{style_description}'")
+        # Use provided palette/custom_mapping if available, else fallback to old logic
+        if palette is not None:
+            print("[DEBUG] Using pre-generated palette for this site")
+            used_palette = palette
+            used_mapping = custom_mapping
+        else:
+            # Fallback: generate palette as before (should not happen in multipage flow)
+            used_palette, used_mapping = generate_color_palette_with_gpt4o(style_description)
         try:
-            # Extract primary color from style description
-            primary_color = extract_color_from_description(style_description)
-            print(f"Extracted primary color: {primary_color} from '{style_description}'")
-            
-            # Generate a color palette based on the primary color
-            palette = generate_smart_palette(primary_color)
-            print(f"Generated smart color palette with {len(palette)} colors")
-            
             # Generate text colors for accessibility
-            text_colors = create_accessible_text_colors(palette)
+            text_colors = create_accessible_text_colors(used_palette)
             print(f"Generated accessible text colors for the palette")
-            
             # Map the palette to Elementor properties
-            elementor_color_map = map_colors_to_elementor(palette, text_colors)
-            print(f"Mapped {len(elementor_color_map)} Elementor properties to colors")
+            elementor_color_map = map_colors_to_elementor(used_palette, text_colors if used_mapping is None else used_mapping)
+            print(f"Mapped Elementor properties to colors")
             
             # Apply the colors to the Elementor data
             def apply_colors(element):
@@ -525,6 +521,7 @@ class MultiPageSiteGenerator:
 
     def create_multi_page_site(self, user_query: str, output_path: str, style_description: str = None) -> str:
         """Create a multi-page WordPress site from the user query"""
+        print(f"[DEBUG] MultiPageSiteGenerator.create_multi_page_site called with style_description: '{style_description}'")
         # Parse the user query to get requested pages
         page_types = self.parse_user_query(user_query)
         print(f"Identified page types: {page_types}")
@@ -536,12 +533,16 @@ class MultiPageSiteGenerator:
         # Create a base template
         rss = self.create_base_template()
         channel = rss.find('channel')
-        
-        # Add each page to the template
+
+        # Generate the color palette and mapping ONCE per site
+        palette, custom_mapping = generate_color_palette_with_gpt4o(style_description)
+        print(f"[DEBUG] Generated color palette with GPT-4o once for all pages")
+
         page_id = 1
         for page_type in page_types:
             if page_type in selected_pages:
-                self.add_page_to_template(channel, page_type, selected_pages[page_type], page_id, style_description)
+                print(f"[DEBUG] Adding page '{page_type}' with style_description: '{style_description}'")
+                self.add_page_to_template(channel, page_type, selected_pages[page_type], page_id, style_description, palette, custom_mapping)
                 page_id += 1
         
         # Create menu items for navigation
