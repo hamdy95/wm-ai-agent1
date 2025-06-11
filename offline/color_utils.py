@@ -170,7 +170,7 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a professional color palette generator. Respond only with valid JSON containing the requested data."},
+                {"role": "system", "content": "You are a professional color palette generator based on the color user will request if he said yellow generate based on that if said green same thing and so on of all colors. Respond only with valid JSON containing the requested data."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.2,
