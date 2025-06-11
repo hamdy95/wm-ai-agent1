@@ -113,7 +113,7 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         prompt = f"""
         I need a professional color palette and Elementor property mapping for a website with the following style description: "{style_description}"
         
-        Part 1: Please generate a complete color palette with the following colors (in hex format):
+        Part 1: Please generate a complete color palette in the requested color in style description do not make another color just the requested one and make the pallate for it with the following colors (in hex format):
         - primary: The main brand color (use a rich, vibrant color that matches the style description, NOT white or very light colors)
         - primary_dark: A darker version of the primary color
         - primary_light: A lighter version of the primary color
