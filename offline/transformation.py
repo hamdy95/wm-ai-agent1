@@ -189,7 +189,7 @@ class ContentTransformationAgent:
                         3. Maintaining similar length and structure
                         4. Making content relevant to the requested style/business type
                         5. Keeping function words (buttons, labels, etc.) concise and action-oriented
-                        6. prevent any special characters from being used in the transformed text
+                        6. prevent any special characters from being used in the transformed text like if you found on original file any special char remove it in the the new one any special char even its importnat just remove it
                         Format: For each text return exactly:
                         ORIGINAL: [original text]
                         NEW: [transformed text]"""
