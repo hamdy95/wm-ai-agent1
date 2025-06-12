@@ -352,19 +352,7 @@ class ThemeTransformerOrchestrator:
                 if 'color_palette' in transformation_result['color_palette']:
                     # Handle nested color_palette structure
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
-
-            # --- PATCH: Ensure palette/mapping are present BEFORE writing transformation JSON or replacement phase ---
-            if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
-                if self.multipage_generator.generated_palette is not None and self.multipage_generator.generated_mapping is not None:
-                    transformation_result['full_palette'] = self.multipage_generator.generated_palette
-                    transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
-                    transformation_result['style_description'] = self.multipage_generator.generated_style_description
-                else:
-                    raise ValueError("ERROR: full_palette or elementor_mapping is None after site generation. Aborting before replacement phase.")
-            else:
-                raise ValueError("ERROR: multipage_generator missing generated_palette or generated_mapping attributes. Aborting before replacement phase.")
-            # --- END PATCH ---
-
+            
             # Generate transformation output path
             transformed_path = os.path.join(work_dir, f"transformed_{job_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
@@ -514,19 +502,6 @@ class ThemeTransformerOrchestrator:
             elif isinstance(transformation_result['color_palette'], dict):
                 if 'color_palette' in transformation_result['color_palette']:
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
-
-            # --- PATCH: Ensure palette/mapping are present BEFORE writing transformation JSON or replacement phase ---
-            if hasattr(self.onepage_generator, 'generated_palette') and hasattr(self.onepage_generator, 'generated_mapping'):
-                if self.onepage_generator.generated_palette is not None and self.onepage_generator.generated_mapping is not None:
-                    transformation_result['full_palette'] = self.onepage_generator.generated_palette
-                    transformation_result['elementor_mapping'] = self.onepage_generator.generated_mapping
-                    transformation_result['style_description'] = self.onepage_generator.generated_style_description
-                else:
-                    raise ValueError("ERROR: full_palette or elementor_mapping is None after site generation. Aborting before replacement phase.")
-            else:
-                raise ValueError("ERROR: onepage_generator missing generated_palette or generated_mapping attributes. Aborting before replacement phase.")
-            # --- END PATCH ---
-
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
@@ -615,19 +590,6 @@ class ThemeTransformerOrchestrator:
             elif isinstance(transformation_result['color_palette'], dict):
                 if 'color_palette' in transformation_result['color_palette']:
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
-
-            # --- PATCH: Ensure palette/mapping are present BEFORE writing transformation JSON or replacement phase ---
-            if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
-                if self.multipage_generator.generated_palette is not None and self.multipage_generator.generated_mapping is not None:
-                    transformation_result['full_palette'] = self.multipage_generator.generated_palette
-                    transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
-                    transformation_result['style_description'] = self.multipage_generator.generated_style_description
-                else:
-                    raise ValueError("ERROR: full_palette or elementor_mapping is None after site generation. Aborting before replacement phase.")
-            else:
-                raise ValueError("ERROR: multipage_generator missing generated_palette or generated_mapping attributes. Aborting before replacement phase.")
-            # --- END PATCH ---
-
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
@@ -664,6 +626,11 @@ class ThemeTransformerOrchestrator:
                 "output_url": f"/download/{job_id}",
                 "job_type": "multi_page_site"
             })
+            # Save the palette and mapping in the transformation_result for later use
+            if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
+                transformation_result['full_palette'] = self.multipage_generator.generated_palette
+                transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
+                transformation_result['style_description'] = self.multipage_generator.generated_style_description
             print(f"Multi-page site generation completed successfully! Output: {output_path}")
         except Exception as e:
             print(f"Error generating multi-page site: {e}")
