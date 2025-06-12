@@ -347,20 +347,36 @@ def replace_text_and_colors(xml_file_path, json_file_path, output_file_path, ver
     ET.register_namespace('content', 'http://purl.org/rss/1.0/modules/content/')
     ET.register_namespace('wfw', 'http://wellformedweb.org/CommentAPI/')
     ET.register_namespace('dc', 'http://purl.org/dc/elements/1.1/')
-
+    
     tree = ET.parse(xml_file_path)
     root = tree.getroot()
-
+    
     print(f"Loading transformation data from {json_file_path}")
     with open(json_file_path, 'r', encoding='utf-8') as json_file:
         data = json.load(json_file)
-
+    
     # Save a copy of raw transformation data for debugging
     debug_dir = os.path.join(os.path.dirname(output_file_path), "debug")
     os.makedirs(debug_dir, exist_ok=True)
     with open(os.path.join(debug_dir, "raw_transforms.json"), 'w', encoding='utf-8') as debug_file:
         json.dump(data, debug_file, indent=2)
-
+    
+    # Get style description from different possible sources in data
+    # First try direct style_description field
+    style_description = data.get("style_description", "")
+    if not style_description:
+        # Try the transformation_result structure if available
+        transformation_result = data.get("transformation_result", {})
+        if transformation_result:
+            style_description = transformation_result.get("style_description", "")
+        if not style_description:
+            # Try the input structure if available
+            input_data = data.get("input", {})
+            if input_data:
+                style_description = input_data.get("style_description", "")
+    
+    print(f"Using style description: {style_description}")
+    
     # If verbose debug, collect all text in the XML for analysis
     if verbose_debug:
         all_xml_texts = []
@@ -368,10 +384,12 @@ def replace_text_and_colors(xml_file_path, json_file_path, output_file_path, ver
             if elem.text and elem.text.strip():
                 if len(elem.text.strip()) > 10:  # Only collect meaningful text
                     all_xml_texts.append(elem.text.strip())
+        
+        # Write all texts to a debug file
         with open(os.path.join(debug_dir, "all_xml_texts.json"), 'w', encoding='utf-8') as debug_file:
             json.dump(all_xml_texts, debug_file, indent=2)
         print(f"Collected {len(all_xml_texts)} text elements from XML for debugging")
-
+    
     # Extract and process text transformations
     text_transformations = data.get("text_transformations", [])
     print(f"Found {len(text_transformations)} raw text transformations")
@@ -516,22 +534,40 @@ def replace_text_and_colors(xml_file_path, json_file_path, output_file_path, ver
             except json.JSONDecodeError:
                 continue
 
-    # --- USE ONLY THE SAVED PALETTE/MAPPING ---
-    elementor_color_map = None
-    if "full_palette" in data and isinstance(data["full_palette"], dict):
-        palette_dict = data["full_palette"]
-        if "elementor_mapping" in data and isinstance(data["elementor_mapping"], dict):
-            elementor_color_map = data["elementor_mapping"]
-            print(f"Using elementor_mapping from transformation data with {len(elementor_color_map)} properties.")
+    # Generate a smart color palette and mapping using the style description  
+    print(f"Transforming {len(color_map)} colors based on style description: {style_description}")
+
+    # Generate color map and palette using the style description
+    if color_map:
+        if style_description:
+            color_map, palette_hex = create_color_mapping(list(color_map.keys()), style_description)
         else:
-            try:
+            print("Warning: No style description available. Using original color mapping.")
+            palette_hex = list(color_map.values())  # Use mapped colors as palette
+
+    # Get the Elementor color mapping (specific_palette_map) from GPT-4o if style description is available
+    elementor_color_map = None
+    try:
+        if style_description:
+            # Try to generate a palette and mapping with GPT-4o
+            from offline.color_utils import generate_color_palette_with_gpt4o
+            palette, elementor_color_map = generate_color_palette_with_gpt4o(style_description)
+            if elementor_color_map:
+                print(f"Using GPT-4o generated Elementor mapping with {len(elementor_color_map)} properties")
+            else:
+                # If GPT-4o didn't provide a mapping, use the default mapping
                 from offline.color_utils import map_colors_to_elementor
-            except ImportError:
-                from .color_utils import map_colors_to_elementor
-            elementor_color_map = map_colors_to_elementor(palette_dict)
-            print(f"Created elementor_color_map from full_palette with {len(elementor_color_map)} properties.")
-    else:
-        raise Exception("ERROR: full_palette or elementor_mapping missing from transformation data. This should never happen.")
+                elementor_color_map = map_colors_to_elementor(palette_hex)
+                print(f"Using default Elementor mapping with {len(elementor_color_map)} properties")
+        else:
+            print("Warning: No style description available. Using default color mapping.")
+            from offline.color_utils import map_colors_to_elementor
+            elementor_color_map = map_colors_to_elementor(palette_hex)
+    except Exception as e:
+        print(f"Falling back to default Elementor mapping: {str(e)}")
+        from offline.color_utils import map_colors_to_elementor
+        elementor_color_map = map_colors_to_elementor(palette_hex)
+        print(f"Using default Elementor mapping with {len(elementor_color_map)} properties")
 
     # Validate all hex colors in elementor_color_map
     for prop, color in list(elementor_color_map.items()):
