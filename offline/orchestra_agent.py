@@ -516,15 +516,15 @@ class ThemeTransformerOrchestrator:
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
 
             # --- PATCH: Ensure palette/mapping are present BEFORE writing transformation JSON or replacement phase ---
-            if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
-                if self.multipage_generator.generated_palette is not None and self.multipage_generator.generated_mapping is not None:
-                    transformation_result['full_palette'] = self.multipage_generator.generated_palette
-                    transformation_result['elementor_mapping'] = self.multipage_generator.generated_mapping
-                    transformation_result['style_description'] = self.multipage_generator.generated_style_description
+            if hasattr(self.onepage_generator, 'generated_palette') and hasattr(self.onepage_generator, 'generated_mapping'):
+                if self.onepage_generator.generated_palette is not None and self.onepage_generator.generated_mapping is not None:
+                    transformation_result['full_palette'] = self.onepage_generator.generated_palette
+                    transformation_result['elementor_mapping'] = self.onepage_generator.generated_mapping
+                    transformation_result['style_description'] = self.onepage_generator.generated_style_description
                 else:
                     raise ValueError("ERROR: full_palette or elementor_mapping is None after site generation. Aborting before replacement phase.")
             else:
-                raise ValueError("ERROR: multipage_generator missing generated_palette or generated_mapping attributes. Aborting before replacement phase.")
+                raise ValueError("ERROR: onepage_generator missing generated_palette or generated_mapping attributes. Aborting before replacement phase.")
             # --- END PATCH ---
 
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
@@ -1241,30 +1241,42 @@ async def get_color_mapping(request: ColorMappingRequest):
 async def get_page_info(request: PageInfoRequest):
     """Get page IDs and slugs for a job"""
     try:
+        # Check if job exists
         if request.job_id not in orchestrator.jobs:
             raise HTTPException(status_code=404, detail="Job not found")
         
         job = orchestrator.jobs[request.job_id]
         
+        # Check if job has completed
         if job['status'] != 'completed':
             raise HTTPException(status_code=400, detail="Job has not completed yet")
         
+        # Determine if it's a one-page or multi-page site
         job_type = job.get('job_type', 'unknown')
-        output_path = os.path.join(orchestrator.base_dir, "output", f"{request.job_id}.xml")
         
+        # Construct the output path based on job ID
+        output_path = os.path.join(orchestrator.base_dir, "output", f"{request.job_id}.xml")
         if not os.path.exists(output_path):
             raise HTTPException(status_code=404, detail="Output file not found")
         
+        # Parse the XML to extract page information
         tree = ET.parse(output_path)
         root = tree.getroot()
+        
+        # Find all items (pages)
         items = root.findall(".//item")
-
+        
+        # Extract page information
         pages_info = []
         for item in items:
+            # Get post type
             post_type = item.find("./wp:post_type", {"wp": "http://wordpress.org/export/1.2/"})
             if post_type is not None and post_type.text == "page":
+                # Get page ID
                 post_id = item.find("./wp:post_id", {"wp": "http://wordpress.org/export/1.2/"})
+                # Get page slug (post_name)
                 post_name = item.find("./wp:post_name", {"wp": "http://wordpress.org/export/1.2/"})
+                # Get page title
                 title = item.find("./title")
                 
                 if post_id is not None and post_name is not None:
@@ -1273,16 +1285,13 @@ async def get_page_info(request: PageInfoRequest):
                         "slug": post_name.text,
                         "title": title.text if title is not None else ""
                     })
-
+        
         return JSONResponse(content={
             "job_id": request.job_id,
             "job_type": job_type,
             "pages": pages_info
         })
-
-    except HTTPException as e:
-        # Let FastAPI return the original error response
-        raise e
+        
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
