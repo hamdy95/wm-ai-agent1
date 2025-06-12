@@ -84,9 +84,14 @@ class ContentTransformationAgent:
             # Transform colors
             transformed_colors = self._transform_colors(colors_to_transform, style_description)
             
+            # Include all transformation data in the result
             return {
                 'text_transformations': transformed_content.get('text_transformations', []),
-                'color_palette': transformed_colors
+                'color_palette': transformed_colors.get('color_palette', {}),
+                'transformation_notes': transformed_colors.get('transformation_notes', ''),
+                'style_description': style_description,  # Add style_description
+                'full_palette': transformed_colors.get('full_palette', {}),  # Add full palette data if available
+                'theme_id': theme_id,
             }
             
         except Exception as e:
@@ -189,7 +194,7 @@ class ContentTransformationAgent:
                         3. Maintaining similar length and structure
                         4. Making content relevant to the requested style/business type
                         5. Keeping function words (buttons, labels, etc.) concise and action-oriented
-                        6. prevent any special characters from being used in the transformed text like if you found on original file any special char remove it in the the new one any special char even its importnat just remove it
+                        6. prevent any special characters from being used in the transformed text
                         Format: For each text return exactly:
                         ORIGINAL: [original text]
                         NEW: [transformed text]"""
