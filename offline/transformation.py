@@ -127,103 +127,88 @@ class ContentTransformationAgent:
         return hex_colors + rgb_colors + rgba_colors
 
     def _generate_new_transformation_data(self, theme_id: str, style_description: str) -> Dict:
-        """Generate new transformation data by extracting text and colors from database"""
+        """Generate new transformation data by extracting ALL text and colors from database, including duplicates and lorem ipsum."""
         texts = []
         colors = []
-        
-        # Extract texts from sections
         try:
             # Fetch sections
             sections_result = self.supabase.table('sections') \
                 .select('*') \
-                .limit(100) \
+                .eq('theme_id', theme_id) \
+                .limit(1000) \
                 .execute()
-                
             if sections_result.data:
                 for section in sections_result.data:
-                    # Extract texts from the section
                     section_content = section.get('content')
                     if section_content:
                         try:
                             section_data = json.loads(section_content)
                             texts_from_section = []
-                            self.extract_text_from_section(section_data, texts_from_section)
+                            self.extract_text_from_section(section_data, texts_from_section, include_lorem=True)
                             texts.extend([t['text'] for t in texts_from_section])
                         except Exception as e:
                             print(f"Error parsing section content: {e}")
         except Exception as e:
             print(f"Error fetching sections: {e}")
-            
-        # Get unique texts with minimum length
-        unique_texts = list(set([text for text in texts if len(text.split()) >= 3]))
-        print(f"Found {len(unique_texts)} unique texts from sections")
-        
-        # Limit sample size if there are too many texts
-        if len(unique_texts) > 30:
-            unique_texts = random.sample(unique_texts, 30)
-        
+        # Do NOT deduplicate or filter out lorem ipsum or short texts
+        print(f"Found {len(texts)} total texts from sections (including duplicates and lorem ipsum)")
         # Default colors if none found
         default_colors = ['#2989CE', '#16202F', '#E22E40', '#FFFFFF', '#757A81']
         colors = colors or default_colors
-        
         return {
             'theme_id': theme_id,
-            'texts': unique_texts,
+            'texts': texts,
             'colors': colors
         }
 
     def _generate_transformed_content(self, texts: List[str], colors: List[str], style_description: str) -> Dict:
-        """Generate transformed content for texts and colors"""
+        """Generate transformed content for texts and colors, transforming EVERY text (including duplicates and lorem ipsum, in any language)."""
+        def is_lorem(text):
+            text_lower = text.lower()
+            return (
+                'lorem ipsum' in text_lower or
+                'لوريم' in text_lower or
+                'إيبسوم' in text_lower or
+                'دولور' in text_lower or
+                'سيت أميت' in text_lower or
+                'dummy text' in text_lower
+            )
         try:
-            # Filter out empty or very short texts
-            valid_texts = [text for text in texts if text and len(text.strip()) > 3]
-            
-            # Process texts in smaller batches to avoid token limits
+            valid_texts = [text for text in texts if text and len(text.strip()) > 0]
             batch_size = 10
             transformed_pairs = []
-            
             for i in range(0, len(valid_texts), batch_size):
                 batch = valid_texts[i:i + batch_size]
-                
                 messages = [
                     {
                         "role": "system",
-                        "content": """You are a professional content transformer for a WordPress theme. Transform each text to match the requested style while:
-                        1. Always generating a new transformed version, never returning text unchanged
-                        2. Preserving the core meaning and key information
-                        3. Maintaining similar length and structure
-                        4. Making content relevant to the requested style/business type
-                        5. Keeping function words (buttons, labels, etc.) concise and action-oriented
-                        6. prevent any special characters from being used in the transformed text
-                        Format: For each text return exactly:
-                        ORIGINAL: [original text]
-                        NEW: [transformed text]"""
+                        "content": (
+                            "You are a professional content transformer for a WordPress theme. "
+                            "Transform each text to match the requested style while:\n"
+                            "1. Always generate a new, meaningful, and relevant text for every input, never returning any text unchanged (even for lorem ipsum, dummy, or placeholder text in any language, including Arabic).\n"
+                            "2. If the text is lorem ipsum, placeholder, or dummy text (in any language), always replace it with real, relevant content for the requested style and language.\n"
+                            "3. Preserve the core meaning and key information if present.\n"
+                            "4. Maintain similar length and structure.\n"
+                            "5. Make content relevant to the requested style/business type.\n"
+                            "6. Keep function words (buttons, labels, etc.) concise and action-oriented.\n"
+                            "7. Prevent any special characters from being used in the transformed text.\n"
+                            "Format: For each text return exactly:\nORIGINAL: [original text]\nNEW: [transformed text]"
+                        )
                     },
                     {
                         "role": "user",
-                        "content": f"""Transform these texts for: {style_description}
-
-                        Original texts:
-                        {json.dumps(batch, indent=2)}
-
-                        Return each transformation in the format:
-                        ORIGINAL: [text]
-                        NEW: [transformed text]"""
+                        "content": f"""Transform these texts for: {style_description}\n\nOriginal texts:\n{json.dumps(batch, indent=2)}\n\nReturn each transformation in the format:\nORIGINAL: [text]\nNEW: [transformed text]"""
                     }
                 ]
-                
                 try:
                     response = self.client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-4.1",
                         messages=messages,
-                        temperature=0.2,
+                        temperature=0.4,
                         max_tokens=2048
                     )
-                    
-                    # Parse response
                     response_text = response.choices[0].message.content
-                    pairs = re.split(r'ORIGINAL:', response_text)[1:]  # Skip empty first split
-                    
+                    pairs = re.split(r'ORIGINAL:', response_text)[1:]
                     for pair in pairs:
                         try:
                             parts = pair.split('NEW:', 1)
@@ -232,7 +217,6 @@ class ContentTransformationAgent:
                                 transformed = parts[1].strip()
                                 transformed = re.sub(r'ORIGINAL:.*', '', transformed).strip()
                                 transformed = re.sub(r'===.*===', '', transformed).strip()
-                                
                                 transformed_pairs.append({
                                     "original": original,
                                     "transformed": transformed
@@ -240,24 +224,39 @@ class ContentTransformationAgent:
                         except Exception as e:
                             print(f"Error parsing transformation pair: {e}")
                             continue
-                            
                 except Exception as e:
                     print(f"Error in batch transformation: {e}")
-                    # For failed batches, keep original texts
                     for text in batch:
                         transformed_pairs.append({
                             "original": text,
                             "transformed": text
                         })
-            
-            # Transform colors
+            # Post-process: re-transform any text that still looks like lorem/placeholder
+            for pair in transformed_pairs:
+                if is_lorem(pair['transformed']):
+                    print(f"Re-transforming placeholder/lorem text: {pair['transformed']}")
+                    # Re-transform with a direct prompt
+                    try:
+                        messages = [
+                            {"role": "system", "content": "Replace this placeholder or lorem ipsum text (in any language) with real, relevant content for: " + style_description},
+                            {"role": "user", "content": pair['transformed']}
+                        ]
+                        response = self.client.chat.completions.create(
+                            model="gpt-4.1",
+                            messages=messages,
+                            temperature=0.4,
+                            max_tokens=256
+                        )
+                        new_text = response.choices[0].message.content.strip()
+                        if not is_lorem(new_text):
+                            pair['transformed'] = new_text
+                    except Exception as e:
+                        print(f"Error in re-transforming placeholder: {e}")
             transformed_colors = self._transform_colors(colors, style_description)
-            
             return {
                 "text_transformations": transformed_pairs,
                 "color_palette": transformed_colors.get('color_palette', {})
             }
-            
         except Exception as e:
             print(f"Error generating transformed content: {e}")
             return {
@@ -426,44 +425,34 @@ class ContentTransformationAgent:
         
         return formatted_palette
 
-    def extract_text_from_section(self, data, texts_list):
-        """Recursively extract text from Elementor section data"""
+    def extract_text_from_section(self, data, texts_list, include_lorem=False):
+        """Recursively extract text from Elementor section data, including all lorem ipsum and duplicates if include_lorem=True."""
         if isinstance(data, dict):
             # Check for text content in this item
-            if 'text' in data and isinstance(data['text'], str) and len(data['text'].strip()) > 0:
-                texts_list.append({
-                    'text': data['text'].strip(),
-                    'type': 'text'
-                })
-            elif 'title' in data and isinstance(data['title'], str) and len(data['title'].strip()) > 0:
-                texts_list.append({
-                    'text': data['title'].strip(),
-                    'type': 'title'
-                })
-            elif 'heading' in data and isinstance(data['heading'], str) and len(data['heading'].strip()) > 0:
-                texts_list.append({
-                    'text': data['heading'].strip(),
-                    'type': 'heading'
-                })
-            elif 'label' in data and isinstance(data['label'], str) and len(data['label'].strip()) > 0:
-                texts_list.append({
-                    'text': data['label'].strip(),
-                    'type': 'label'
-                })
-            elif 'button_text' in data and isinstance(data['button_text'], str) and len(data['button_text'].strip()) > 0:
-                texts_list.append({
-                    'text': data['button_text'].strip(),
-                    'type': 'button'
-                })
-                
+            for key in ['text', 'title', 'heading', 'label', 'button_text', 'editor', 'subtitle', 'description', 'content', 'tab_title', 'address']:
+                if key in data and isinstance(data[key], str) and len(data[key].strip()) > 0:
+                    value = data[key].strip()
+                    if include_lorem or not self._is_lorem(value):
+                        texts_list.append({'text': value, 'type': key})
             # Recursively check all values
             for value in data.values():
-                self.extract_text_from_section(value, texts_list)
+                self.extract_text_from_section(value, texts_list, include_lorem=include_lorem)
         elif isinstance(data, list):
-            # Check all items in the list
             for item in data:
-                self.extract_text_from_section(item, texts_list)
-                
+                self.extract_text_from_section(item, texts_list, include_lorem=include_lorem)
+
+    def _is_lorem(self, text: str) -> bool:
+        """Detect if text is lorem ipsum in any language (basic check)."""
+        text_lower = text.lower()
+        return (
+            'lorem ipsum' in text_lower or
+            'لوريم' in text_lower or
+            'إيبسوم' in text_lower or
+            'دولور' in text_lower or
+            'سيت أميت' in text_lower or
+            'dummy text' in text_lower
+        )
+
     def store_transformation_data(
         self,
         theme_id: str,
@@ -563,6 +552,39 @@ class ContentTransformationAgent:
             print(f"Error storing transformation data: {e}")
             traceback.print_exc()
             return False
+
+    def _replace_texts_in_elementor_data(self, elementor_data: Any, text_map: Dict[str, str]) -> Any:
+        """Recursively replace every original text in elementor_data with its transformed version, including all duplicates and lorem ipsum."""
+        if isinstance(elementor_data, dict):
+            for key, value in elementor_data.items():
+                if isinstance(value, str) and value in text_map:
+                    elementor_data[key] = text_map[value]
+                elif isinstance(value, (dict, list)):
+                    elementor_data[key] = self._replace_texts_in_elementor_data(value, text_map)
+            return elementor_data
+        elif isinstance(elementor_data, list):
+            return [self._replace_texts_in_elementor_data(item, text_map) for item in elementor_data]
+        else:
+            return elementor_data
+
+    def apply_text_transformations_to_theme(self, theme_id: str, text_transformations: List[Dict]) -> None:
+        """Apply all text transformations to every section in the theme, replacing every occurrence (including duplicates and lorem ipsum)."""
+        # Build a mapping from original to transformed
+        text_map = {t['original']: t['transformed'] for t in text_transformations if t.get('original') and t.get('transformed')}
+        # Fetch all sections for this theme
+        sections_result = self.supabase.table('sections').select('*').eq('theme_id', theme_id).limit(1000).execute()
+        if sections_result.data:
+            for section in sections_result.data:
+                section_id = section['id']
+                content = section.get('content')
+                if content:
+                    try:
+                        section_data = json.loads(content)
+                        updated_section_data = self._replace_texts_in_elementor_data(section_data, text_map)
+                        # Update the section in the database
+                        self.supabase.table('sections').update({'content': json.dumps(updated_section_data)}).eq('id', section_id).execute()
+                    except Exception as e:
+                        print(f"Error updating section {section_id}: {e}")
 
 def main():
     # Create agent instance
