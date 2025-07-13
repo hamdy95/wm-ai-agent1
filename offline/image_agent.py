@@ -1,11 +1,15 @@
 """
 Image Agent: Handles image fetching and processing using Unsplash API and GPT.
 """
+
 import os
 from unsplash.api import Api
 from unsplash.auth import Auth
 import openai
 from dotenv import load_dotenv
+
+# --- Track used Unsplash image IDs to avoid repeats ---
+used_unsplash_image_ids = set()
 
 load_dotenv()
 
@@ -100,15 +104,18 @@ def find_image_on_unsplash(keywords: str) -> str | None:
 
     try:
         print(f"Searching Unsplash for: '{keywords}'")
-        # Remove orientation parameter which is causing the TypeError
-        photos = unsplash_api.search.photos(query=keywords, per_page=5)
-        
+        photos = unsplash_api.search.photos(query=keywords, per_page=10)
         if photos and photos['results']:
-            # Select the first image for simplicity
-            selected_image = photos['results'][0]
-            image_url = selected_image.urls.regular
-            print(f"Found image on Unsplash: {image_url} (ID: {selected_image.id})")
-            return image_url
+            # Find the first image that has not been used yet
+            for img in photos['results']:
+                img_id = getattr(img, 'id', None)
+                if img_id and img_id not in used_unsplash_image_ids:
+                    image_url = img.urls.regular
+                    used_unsplash_image_ids.add(img_id)
+                    print(f"Found image on Unsplash: {image_url} (ID: {img_id})")
+                    return image_url
+            print(f"All images for keywords '{keywords}' have already been used.")
+            return None
         else:
             print(f"No images found on Unsplash for keywords: {keywords}")
             return None
