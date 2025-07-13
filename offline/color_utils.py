@@ -156,7 +156,7 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - icon_hover_color: Use primary_dark, accent_dark, or another appropriate color
         - heading_color: Use text_primary, white, or black depending on the background color to ensure readability
         - text_color: Use text_primary, white, or black depending on the background color to ensure readability
-        - link_color: Use primary or accent
+        - link_color: Use color to be diffrent to primary to have good appearance
         - link_hover_color: Use primary_dark or accent_dark
         - field_background_color: Use neutral_light or white depending on the design
         - field_border_color: Use neutral_dark or primary
