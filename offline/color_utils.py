@@ -138,7 +138,7 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - background_hover_color: Use primary_light or another appropriate color
         - background_active_color: Use secondary or another appropriate color
         - background_selected_color: Use secondary_dark or another appropriate color
-        - title_color: Use black depending on the background color to ensure readability
+        - title_color: Use Color depending on the background color to ensure readability or black color , no white color 
         - description_color: Use text_secondary, white, or black depending on the background color to ensure readability
         - color_text: Use text_primary, white, or black depending on the background color to ensure readability
         - color: Use text_primary, white, or black depending on the background color to ensure readability
@@ -153,11 +153,11 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - border_hover_color: Use primary or accent depending on the design
         - primary_color: Use primary
         - secondary_color: Use secondary
-        - icon_color: Use primary, accent, or text_primary depending on the background
+        - icon_color: Use color diffrent to primary color to be diffrent to background color 
         - icon_hover_color: Use primary_dark, accent_dark, or another appropriate color
         - heading_color: Use text_primary, white, or black depending on the background color to ensure readability
         - text_color: Use text_primary, white, or black depending on the background color to ensure readability
-        - link_color: Use color to be diffrent to primary to have good appearance
+        - link_color: primary 
         - link_hover_color: Use primary_dark or accent_dark
         - field_background_color: Use neutral_light or white depending on the design
         - field_border_color: Use neutral_dark or primary
