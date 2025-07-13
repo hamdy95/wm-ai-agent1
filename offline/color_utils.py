@@ -130,14 +130,15 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - error: A color indicating error
         - white: Pure white (#FFFFFF)
         - black: Pure black (#000000)
-        
+           
+        Note : Make the links color to be color far from the primary color to have a good apprearance     
         Part 2: Now, create a mapping of Elementor color properties to the palette colors above. This determines which palette color is used for each Elementor property. Include these Elementor properties:
         - background_color: Use primary or another rich color from the palette, NOT white or very light colors
         - background_overlay_color: Use primary_dark or another rich color from the palette
         - background_hover_color: Use primary_light or another appropriate color
         - background_active_color: Use secondary or another appropriate color
         - background_selected_color: Use secondary_dark or another appropriate color
-        - title_color: Use text_primary, white, or black depending on the background color to ensure readability
+        - title_color: Use black depending on the background color to ensure readability
         - description_color: Use text_secondary, white, or black depending on the background color to ensure readability
         - color_text: Use text_primary, white, or black depending on the background color to ensure readability
         - color: Use text_primary, white, or black depending on the background color to ensure readability
