@@ -138,8 +138,8 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - background_hover_color: Use primary_light or another appropriate color
         - background_active_color: Use secondary or another appropriate color
         - background_selected_color: Use secondary_dark or another appropriate color
-        - title_color: Use Color depending on the background color to ensure readability or black color , no white color 
-        - description_color: Use text_secondary, white, or black depending on the background color to ensure readability
+        - title_color: Use Black colr or Color depending on the background color to ensure readability , Note in title-color do not use white colors at all 
+        - description_color: Use text_secondary or black depending on the background color to ensure readability
         - color_text: Use text_primary, white, or black depending on the background color to ensure readability
         - color: Use text_primary, white, or black depending on the background color to ensure readability
         - hover_color: Use accent or another appropriate color
