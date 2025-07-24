@@ -145,10 +145,10 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - hover_color: Use accent or another appropriate color
         - active_color: Use accent_dark or another appropriate color
         - selected_color: Use accent or secondary depending on the design
-        - button_background_color: Use primary, accent, or another appropriate color
-        - button_hover_background_color: Use primary_dark, accent_dark, or another appropriate color
-        - button_text_color: Use white or black depending on the button background to ensure readability
-        - button_hover_text_color: Use white or black depending on the button hover background to ensure readability
+        - button_background_color: Use primary
+        - button_hover_background_color: Use primary_dark
+        - button_text_color: Use white 
+        - button_hover_text_color: Use primary_light
         - border_color: Use neutral_dark or another appropriate color
         - border_hover_color: Use primary or accent depending on the design
         - primary_color: Use primary
