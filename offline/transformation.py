@@ -13,6 +13,72 @@ import html
 from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping
 
 class ContentTransformationAgent:
+    def transform_posts(self, posts: List[Dict], style_description: str) -> List[Dict]:
+        """
+        For each post, transform both the title and content using GPT-4.1, and return a list of dicts with post_id, post_type, original_title, transformed_title, original, transformed.
+        """
+        results = []
+        for post in posts:
+            post_id = post.get('wp_post_id')
+            post_type = post.get('post_type', '')
+            original_title = post.get('original_title', '')
+            original_content = post.get('original_content', '')
+            # Transform title
+            prompt_title = (
+                f"Transform this WordPress post title for: {style_description}\n"
+                f"Original title: {original_title}\n"
+                "Return only the new, transformed title, making it relevant to the style/business. Do NOT return any unchanged text."
+            )
+            try:
+                response_title = self.client.chat.completions.create(
+                    model="gpt-4.1",
+                    messages=[
+                        {"role": "system", "content": "You are a professional blog post title transformer for WordPress themes. Always transform the title to match the requested style/business."},
+                        {"role": "user", "content": prompt_title}
+                    ],
+                    temperature=0.5,
+                    max_tokens=128
+                )
+                transformed_title = response_title.choices[0].message.content.strip()
+            except Exception as e:
+                print(f"Error transforming post title for post_id {post_id}: {e}")
+                transformed_title = original_title
+            # Transform content
+            transformed_content = self.transform_post_content_gpt(original_content, style_description)
+            results.append({
+                'post_id': post_id,
+                'post_type': post_type,
+                'original_title': original_title,
+                'transformed_title': transformed_title,
+                'original': original_content,
+                'transformed': transformed_content
+            })
+        return results
+    def transform_post_content_gpt(self, original_content: str, style_description: str) -> str:
+        """
+        Transform a WordPress post's HTML content using GPT-4.1, preserving all HTML structure and block comments.
+        The output will have all visible text rewritten to match the requested style/business, but all HTML tags and structure will be preserved.
+        """
+        prompt = (
+            f"Transform the following WordPress post HTML content for: {style_description}\n"
+            f"Original HTML content (including all block comments and tags):\n{original_content}\n"
+            "Return only the new, transformed HTML content, keeping the structure and blocks, but making all text relevant to the style/business. Do NOT return any unchanged text."
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4.1",
+                messages=[
+                    {"role": "system", "content": "You are a professional WordPress post transformer. Always transform all visible text, including inside HTML and block comments, but preserve the HTML structure and all tags. Never return unchanged text."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.5,
+                max_tokens=2048
+            )
+            new_content = response.choices[0].message.content.strip()
+            return new_content
+        except Exception as e:
+            print(f"Error transforming post content with GPT-4.1: {e}")
+            return original_content
     """Agent responsible for transforming extracted content using GPT-4"""
     
     def __init__(self):
@@ -31,35 +97,58 @@ class ContentTransformationAgent:
         self.client = OpenAI(api_key=openai_api_key)
         self.batch_size = 5
 
-    def transform_theme_content(self, theme_id: str, style_description: str, filtered_pages: List[Dict] = None, filtered_sections: List[Dict] = None) -> Dict:
-        """Transform theme content based on style description"""
+    def transform_theme_content(self, theme_id: str, style_description: str, filtered_pages: List[Dict] = None, filtered_sections: List[Dict] = None, extracted_posts: List[Dict] = None) -> Dict:
+        """Transform theme content based on style description, including posts if provided."""
         try:
-            # Fetch transformation data for the theme if not using filtered content
             if not filtered_pages and not filtered_sections:
                 result = self.supabase.table('transformation_data')\
                     .select('*')\
                     .eq('theme_id', theme_id)\
                     .execute()
-                    
-                # If no transformation data exists, generate new data
                 if not result.data:
                     transformation_data = self._generate_new_transformation_data(theme_id, style_description)
                 else:
                     transformation_data = result.data[0]
-                
                 texts_to_transform = transformation_data.get('texts', [])
                 colors_to_transform = transformation_data.get('colors', [])
+                # Use extracted_posts if provided, else fallback to DB
+                if extracted_posts is not None:
+                    post_transformations = self.transform_posts(extracted_posts, style_description)
+                else:
+                    posts_result = self.supabase.table('pages').select('*').eq('theme_id', theme_id).limit(1000).execute()
+                    post_transformations = []
+                    if posts_result.data:
+                        # Fallback: try to transform posts from DB if available
+                        for p in posts_result.data:
+                            post_id = p.get('wp_post_id') or p['id']
+                            post_type = p.get('post_type', '')
+                            original_title = p.get('original_title', '')
+                            original_content = p.get('original_content', '')
+                            if post_type == 'post' and original_content:
+                                transformed = self.transform_post_content_gpt(original_content, style_description)
+                                post_transformations.append({
+                                    'post_id': post_id,
+                                    'post_type': post_type,
+                                    'original_title': original_title,
+                                    'transformed_title': original_title,
+                                    'original': original_content,
+                                    'transformed': transformed
+                                })
             else:
-                # Use filtered content
                 texts_to_transform = []
                 colors_to_transform = []
-                
-                # Extract texts and colors from filtered pages and sections
+                post_transformations = []
                 for page in filtered_pages:
                     if 'content' in page:
                         texts_to_transform.extend(self._extract_texts_from_content(page['content']))
                         colors_to_transform.extend(self._extract_colors_from_content(page['content']))
-                
+                        if page.get('category') == 'post':
+                            transformed = self.transform_post_content_gpt(page['content'], style_description)
+                            post_transformations.append({
+                                'post_id': page.get('id'),
+                                'original': page['content'],
+                                'transformed': transformed
+                            })
                 for section in filtered_sections:
                     if 'content' in section:
                         try:
@@ -68,31 +157,58 @@ class ContentTransformationAgent:
                             self.extract_text_from_section(section_data, texts_from_section)
                             texts_to_transform.extend([t['text'] for t in texts_from_section])
                         except:
-                            # If we can't parse JSON, try direct text extraction
                             texts_to_transform.extend(self._extract_texts_from_content(section['content']))
                         colors_to_transform.extend(self._extract_colors_from_content(section['content']))
-                
-                # Remove duplicates while preserving order
                 texts_to_transform = list(dict.fromkeys(texts_to_transform))
                 colors_to_transform = list(dict.fromkeys(colors_to_transform))
-            
             print(f"Loaded {len(texts_to_transform)} texts and {len(colors_to_transform)} colors")
-            
-            # Transform content using the generate_transformed_content method directly
             transformed_content = self._generate_transformed_content(texts_to_transform, colors_to_transform, style_description)
-            
-            # Transform colors
             transformed_colors = self._transform_colors(colors_to_transform, style_description)
-            
-            # Include all transformation data in the result
             return {
                 'text_transformations': transformed_content.get('text_transformations', []),
                 'color_palette': transformed_colors.get('color_palette', {}),
                 'transformation_notes': transformed_colors.get('transformation_notes', ''),
-                'style_description': style_description,  # Add style_description
-                'full_palette': transformed_colors.get('full_palette', {}),  # Add full palette data if available
+                'style_description': style_description,
+                'full_palette': transformed_colors.get('full_palette', {}),
                 'theme_id': theme_id,
+                'post_transformations': post_transformations,
             }
+        except Exception as e:
+            print(f"An error occurred in transform_theme_content: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'text_transformations': [],
+                'color_palette': {},
+                'transformation_notes': '',
+                'style_description': style_description,
+                'full_palette': {},
+                'theme_id': theme_id,
+                'post_transformations': [],
+            }
+    def _transform_post_content(self, content: str, style_description: str) -> str:
+        """Transform a single post's content, preserving all HTML and block comments."""
+        # Pass the full HTML content (including block comments and tags) to the transformer
+        prompt = (
+            f"Transform this WordPress post content for: {style_description}\n"
+            f"Original HTML content (including all block comments and tags):\n{content}\n"
+            "Return only the new, transformed HTML content, keeping the structure and blocks, but making all text relevant to the style/business. Do NOT return any unchanged text."
+        )
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4.1",
+                messages=[
+                    {"role": "system", "content": "You are a professional blog post transformer for WordPress themes. Always transform all text, including inside HTML and block comments, but preserve the HTML structure."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.5,
+                max_tokens=2048
+            )
+            new_content = response.choices[0].message.content.strip()
+            return new_content
+        except Exception as e:
+            print(f"Error transforming post content: {e}")
+            return content
             
         except Exception as e:
             print(f"Error transforming content: {e}")
