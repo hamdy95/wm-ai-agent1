@@ -504,22 +504,73 @@ def replace_text_and_colors(xml_file_path, json_file_path, output_file_path, ver
         if isinstance(transformed_text, str) and transformed_text.startswith('$') and not transformed_text.startswith('"$'):
             safe_transformed_text = f'"{transformed_text}"'  # Add quotes to prevent JSON parsing errors
             print(f"Adding quotes to currency value: {transformed_text} -> {safe_transformed_text}")
-        
         for elem in root.iter():
             if elem.text and original_text in elem.text:
                 elem.text = elem.text.replace(original_text, safe_transformed_text)
                 text_replaced_count += 1
                 print(f"Replaced text: '{original_text[:30]}...' -> '{safe_transformed_text[:30]}...'")
-            
             if elem.tail and original_text in elem.tail:
                 elem.tail = elem.tail.replace(original_text, safe_transformed_text)
                 text_replaced_count += 1
-            
             if elem.attrib:
                 for attr_key, attr_value in elem.attrib.items():
                     if original_text in attr_value:
                         elem.attrib[attr_key] = attr_value.replace(original_text, safe_transformed_text)
                         text_replaced_count += 1
+
+    # --- Replace post title and content using post_transformations ---
+    post_transformations = data.get('post_transformations', [])
+    changed_posts = []
+    unchanged_posts = []
+    if post_transformations:
+        import html
+        post_map = {str(p['post_id']): p for p in post_transformations if p.get('post_id') and p.get('transformed')}
+        print(f"[DEBUG] post_transformations keys: {list(post_map.keys())}")
+        for item in root.findall('.//item'):
+            post_type_el = item.find('wp:post_type', {'wp': 'http://wordpress.org/export/1.2/'})
+            post_id_el = item.find('wp:post_id', {'wp': 'http://wordpress.org/export/1.2/'})
+            content_el = item.find('content:encoded', {'content': 'http://purl.org/rss/1.0/modules/content/'})
+            title_el = item.find('title')
+            # Only replace for posts
+            if post_type_el is not None and post_type_el.text == 'post' and post_id_el is not None and content_el is not None and title_el is not None:
+                post_id = str(post_id_el.text)
+                old_content = content_el.text if content_el.text else ''
+                if post_id in post_map:
+                    new_content = post_map[post_id]['transformed']
+                    new_title = post_map[post_id].get('transformed_title')
+                    # Always wrap in CDATA for WordPress
+                    content_el.text = f'<![CDATA[{new_content}]]>'
+                    if new_title:
+                        # Unescape any HTML entities in the title (e.g., &lt; becomes <)
+                        clean_title = html.unescape(new_title)
+                        title_el.text = None
+                        # Set as CDATA using ElementTree hack (if supported)
+                        try:
+                            from xml.etree.ElementTree import CDATA
+                            title_el.text = CDATA(clean_title)
+                        except ImportError:
+                            # Fallback: just set as plain text
+                            title_el.text = clean_title
+                    changed_posts.append(post_id)
+                    print(f"[POST REPLACE] post_id={post_id}\n  OLD TITLE: {title_el.text}\n  NEW TITLE: {new_title}\n  OLD CONTENT: {old_content[:80]}...\n  NEW CONTENT: {new_content[:80]}...")
+                else:
+                    unchanged_posts.append((post_id, 'no transformed content found'))
+                    print(f"[DEBUG] No transformed content found for post_id={post_id}")
+    # Summary log
+    print(f"\n[SUMMARY] Post content replacement complete.")
+    print(f"[SUMMARY] Changed post contents: {len(changed_posts)}")
+    if unchanged_posts:
+        print(f"[SUMMARY] Unchanged posts: {len(unchanged_posts)}")
+        for post_id, reason in unchanged_posts:
+            print(f"  - post_id={post_id}: {reason}")
+
+    # Always print the full post_transformations list at the end for easy debugging
+    print("\n[POST_TRANSFORMATIONS] Full list of post transformations used for replacement:")
+    if post_transformations:
+        for p in post_transformations:
+            print(f"  - post_id={p.get('post_id')}, original_title={repr(p.get('original_title'))[:60]}..., transformed_title={repr(p.get('transformed_title'))[:60]}..., original={repr(p.get('original'))[:60]}..., transformed={repr(p.get('transformed'))[:60]}...")
+    else:
+        print("  (No post_transformations found in transformation data)")
     
     print(f"Replaced {text_replaced_count} text occurrences in XML elements")
     
