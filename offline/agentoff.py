@@ -26,6 +26,29 @@ class ThemeTransformByIdRequest(BaseModel):
     style_description: Optional[str] = None
 
 class FixedElementorExtractor:
+    def extract_posts_for_transformation(self, xml_file: str, theme_id: str) -> list:
+        """
+        Extract all posts of type 'post' from the XML, including post_id, original_title, original_content, and post_type.
+        """
+        import xml.etree.ElementTree as ET
+        posts = []
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        ns = self.namespaces
+        for item in root.findall('.//item'):
+            post_type_el = item.find('wp:post_type', ns)
+            if post_type_el is not None and post_type_el.text == 'post':
+                post_id_el = item.find('wp:post_id', ns)
+                title_el = item.find('title')
+                content_el = item.find('content:encoded', ns)
+                posts.append({
+                    'wp_post_id': post_id_el.text if post_id_el is not None else None,
+                    'original_title': title_el.text if title_el is not None else '',
+                    'original_content': content_el.text if content_el is not None else '',
+                    'post_type': 'post',
+                    'theme_id': theme_id
+                })
+        return posts
     """Fixed extraction agent with reliable page and section detection"""
     
     def __init__(self):
@@ -513,69 +536,82 @@ class FixedElementorExtractor:
         }
 
     def _identify_sections(self, elementor_data: Any, theme_id: str, page_id: str, is_home_page: bool = False) -> List[Dict]:
-        """Identify only top-level sections/containers from Elementor data. If is_home_page, first section/container is 'main'."""
+        """Identify sections from Elementor data. If is_home_page, first section is 'main'."""
         sections = []
         first_section = True
-
-        def process_layout_element(element, parent_is_layout=False):
+        
+        def process_section(element):
             nonlocal first_section
+            
             if not isinstance(element, dict):
                 return
-
-            el_type = element.get('elType')
-            is_layout = el_type in ('section', 'container')
-
-            # Only treat as section if not nested inside another layout
-            if is_layout and not parent_is_layout:
+            
+            if element.get('elType') == 'section':
                 section_id = element.get('id')
                 section_type = None
                 section_content = []
-
-                # Recursively process child elements for categorization
-                for child in element.get('elements', []):
-                    if isinstance(child, dict):
-                        if child.get('elType') == 'widget':
-                            section_type_candidate = self._analyze_widget_content(child)
-                            if section_type_candidate and not section_type:
-                                section_type = section_type_candidate
-                            section_content.append(child)
-                        # Do NOT treat nested containers/sections as sections
-                        # But still process their widgets for categorization
-                        elif child.get('elType') in ('section', 'container', 'column'):
-                            for widget in child.get('elements', []):
-                                if widget.get('elType') == 'widget':
-                                    section_type_candidate = self._analyze_widget_content(widget)
-                                    if section_type_candidate and not section_type:
-                                        section_type = section_type_candidate
-                                    section_content.append(widget)
-
-                # Special handling for first section/container of home page
+                
+                # Process section content first
+                for column in element.get('elements', []):
+                    if isinstance(column, dict) and column.get('elType') == 'column':
+                        for widget in column.get('elements', []):
+                            widget_type = self._analyze_widget_content(widget)
+                            if widget_type:
+                                section_type = widget_type
+                            section_content.append(widget)
+                
+                # Special handling for first section of home page
                 if first_section:
                     first_section = False
                     if is_home_page:
-                        section_type = section_type or 'main'
-                section_type = section_type or 'general'
-
-                sections.append({
-                    'id': str(uuid.uuid4()),
-                    'theme_id': theme_id,
-                    'page_id': page_id,
-                    'category': section_type,
-                    'content': json.dumps(element),
-                    'created_at': datetime.utcnow().isoformat()
-                })
-
-            # Always process children, but set parent_is_layout=True if this is a layout
-            for child in element.get('elements', []):
-                if isinstance(child, dict):
-                    process_layout_element(child, parent_is_layout=is_layout)
-
+                        sections.append({
+                            'id': str(uuid.uuid4()),
+                            'theme_id': theme_id,
+                            'page_id': page_id,
+                            'category': 'main',
+                            'content': json.dumps({
+                                'section_data': element,
+                                'widgets': section_content
+                            }),
+                            'created_at': datetime.utcnow().isoformat()
+                        })
+                    else:
+                        sections.append({
+                            'id': str(uuid.uuid4()),
+                            'theme_id': theme_id,
+                            'page_id': page_id,
+                            'category': 'hero',
+                            'content': json.dumps({
+                                'section_data': element,
+                                'widgets': section_content
+                            }),
+                            'created_at': datetime.utcnow().isoformat()
+                        })
+                else:
+                    if section_type:
+                        sections.append({
+                            'id': str(uuid.uuid4()),
+                            'theme_id': theme_id,
+                            'page_id': page_id,
+                            'category': section_type,
+                            'content': json.dumps({
+                                'section_data': element,
+                                'widgets': section_content
+                            }),
+                            'created_at': datetime.utcnow().isoformat()
+                        })
+                
+            # Process nested elements
+            if 'elements' in element:
+                for child in element['elements']:
+                    process_section(child)
+        
         if isinstance(elementor_data, list):
             for item in elementor_data:
-                process_layout_element(item)
+                process_section(item)
         else:
-            process_layout_element(elementor_data)
-
+            process_section(elementor_data)
+            
         return sections
 
     def _analyze_widget_content(self, widget: Dict) -> Optional[str]:
@@ -622,56 +658,58 @@ class FixedElementorExtractor:
         }
 
     def _extract_texts(self, data: Any) -> List[str]:
-        """Extract text content from Elementor data, preserving duplicates, supporting containers and lists in settings."""
+        """Extract text content from Elementor data, preserving duplicates"""
         texts = []
+        
         def extract_recursive(item):
             if isinstance(item, dict):
-                # Extract text fields from widget settings
-                if item.get('elType') == 'widget':
-                    settings = item.get('settings', {})
-                    if isinstance(settings, dict):
-                        for field in ['title', 'heading', 'text', 'subtitle', 'description', 'content', 'button_text', 'tab_title', 'editor', 'address']:
-                            value = settings.get(field)
-                            if value and isinstance(value, str):
-                                texts.append(value)
-                            elif isinstance(value, (dict, list)):
-                                extract_recursive(value)
-                    elif isinstance(settings, list):
-                        for sub in settings:
-                            extract_recursive(sub)
-                # Recurse into elements (for containers, sections, columns, etc.)
-                for child in item.get('elements', []):
-                    extract_recursive(child)
+                text_keys = [
+                    'title', 'description', 'content', 'text',
+                    'heading', 'subtitle', 'caption', 'testimonial_name',
+                    'testimonial_job', 'title_text', 'description_text',
+                    'editor', 'testimonial_content', 'content',
+                    'description_text_a', 'tab_title', 'tab_content'
+                ]
+                
+                for key in text_keys:
+                    if key in item and isinstance(item[key], str):
+                        cleaned_text = (
+                            self._clean_html_content(item[key]) 
+                            if key in ['editor', 'testimonial_content', 'tab_content'] 
+                            else re.sub(r'\s+', ' ', item[key]).strip()
+                        )
+                        if cleaned_text and len(cleaned_text) > 3:
+                            texts.append(cleaned_text)  # Keep all texts, including duplicates
+                
+                for value in item.values():
+                    if isinstance(value, (dict, list)):
+                        extract_recursive(value)
+            
             elif isinstance(item, list):
-                for sub in item:
-                    extract_recursive(sub)
+                for element in item:
+                    extract_recursive(element)
+
         extract_recursive(data)
-        return texts
+        return texts  # Return all texts, including duplicates
 
     def _extract_colors(self, data: Any) -> List[str]:
-        """Extract color values from Elementor data, supporting containers and lists in settings."""
+        """Extract color codes from Elementor data, preserving duplicates"""
         colors = []
+        
         def extract_recursive(item):
             if isinstance(item, dict):
-                settings = item.get('settings', {})
-                if isinstance(settings, dict):
-                    for key, value in settings.items():
-                        if isinstance(value, str) and (key.endswith('color') or 'color' in key):
-                            if re.match(r'^#([A-Fa-f0-9]{3,8})$', value) or value.startswith('rgba'):
-                                colors.append(value)
-                        elif isinstance(value, (dict, list)):
-                            extract_recursive(value)
-                elif isinstance(settings, list):
-                    for sub in settings:
-                        extract_recursive(sub)
-                # Recurse into elements
-                for child in item.get('elements', []):
-                    extract_recursive(child)
+                for key, value in item.items():
+                    if isinstance(value, str):
+                        hex_matches = re.findall(r'#(?:[0-9a-fA-F]{3}){1,2}\b', value)
+                        colors.extend(hex_matches)  # Keep all colors, including duplicates
+                    elif isinstance(value, (dict, list)):
+                        extract_recursive(value)
             elif isinstance(item, list):
-                for sub in item:
-                    extract_recursive(sub)
+                for element in item:
+                    extract_recursive(element)
+
         extract_recursive(data)
-        return colors
+        return colors  # Return all colors, including duplicates
 
     def _extract_transformation_data(self, elementor_data: Any) -> Dict:
         """Extract transformation data like texts and colors, preserving duplicates"""
