@@ -1,7 +1,13 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form, Depends, Body
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
+# Google Places OnePage request model
+class GoogleOnePageRequest(BaseModel):
+    google_data: dict = Field(..., description="Full Google Places API result JSON")
+    style_description: Optional[str] = "modern professional style with clean design"
+    replace_images: Optional[bool] = False
+
 import uuid
 import shutil
 import os
@@ -697,11 +703,16 @@ class ThemeTransformerOrchestrator:
                 raise ValueError(f"Invalid XML content for theme ID: {valid_theme_id}")
             print(f"Extracting content from theme ID: {valid_theme_id}...")
             try:
+                # Extract posts for transformation
+                extracted_posts = self.extraction_agent.extract_posts_for_transformation(input_path, valid_theme_id)
+                # Extract pages and sections as before
                 extracted_theme_id, pages_data, sections_data = self.extraction_agent.process_theme(input_path)
                 print(f"Transforming content with style: {style_description or 'default style'}...")
+                # Pass extracted_posts to transformation agent
                 transformation_result = self.transformation_agent.transform_theme_content(
                     extracted_theme_id,
-                    style_description or ""
+                    style_description or "",
+                    extracted_posts=extracted_posts
                 )
                 transformation_path = os.path.join(work_dir, f"transformation_{valid_theme_id}.json")
                 with open(transformation_path, 'w', encoding='utf-8') as f:
@@ -800,7 +811,240 @@ class MultiPageSiteRequest(BaseModel):
     replace_images: Optional[bool] = False
 
 # Initialize orchestrator
+# Initialize orchestrator
 orchestrator = ThemeTransformerOrchestrator()
+
+# --- Google Places OnePage Site Generation ---
+def build_google_onepage_structure(google_data: dict) -> dict:
+    """
+    Map Google Places data to internal one-page site schema for Elementor/WXR XML generation.
+    Returns a dict with all needed content for the generator.
+    """
+    result = google_data.get("result", {})
+    # Header
+    business_name = result.get("name", "Business")
+    main_image = None
+    if result.get("photos"):
+        main_image = result["photos"][0].get("photo_reference")
+    # Fallback to Unsplash keyword if no image
+    unsplash_keyword = result.get("types", ["business"])[0]
+    # Tagline/about (AI-generated, placeholder for now)
+    tagline = f"Welcome to {business_name}!"
+    about = result.get("business_status", "")
+    if result.get("reviews"):
+        about = result["reviews"][0].get("text", about)
+    # Address/Contact
+    address = result.get("formatted_address", "")
+    phone = result.get("formatted_phone_number", "")
+    website = result.get("website", "")
+    # Gallery
+    gallery = []
+    if result.get("photos"):
+        for photo in result["photos"]:
+            gallery.append(photo.get("photo_reference"))
+    # Reviews
+    reviews = result.get("reviews", [])
+    # Map
+    lat = result.get("geometry", {}).get("location", {}).get("lat")
+    lng = result.get("geometry", {}).get("location", {}).get("lng")
+    # Opening hours (for footer)
+    opening_hours = result.get("opening_hours", {}).get("weekday_text", [])
+    # Footer info
+    footer = {
+        "address": address,
+        "phone": phone,
+        "website": website,
+        "opening_hours": opening_hours
+    }
+    return {
+        "business_name": business_name,
+        "main_image": main_image,
+        "unsplash_keyword": unsplash_keyword,
+        "tagline": tagline,
+        "about": about,
+        "address": address,
+        "phone": phone,
+        "website": website,
+        "gallery": gallery,
+        "reviews": reviews,
+        "lat": lat,
+        "lng": lng,
+        "footer": footer
+    }
+
+def generate_google_onepage_xml(site_data: dict, style_description: str, replace_images: bool) -> str:
+    # --- Real implementation using Elementor logic ---
+    from offline.onepage_agent import OnePageSiteGenerator
+    from offline.image_agent import get_image_for_element
+    from offline.transformation import ContentTransformationAgent
+    import xml.etree.ElementTree as ET
+    import json
+    from datetime import datetime
+
+    generator = OnePageSiteGenerator()
+    transformer = ContentTransformationAgent()
+
+    # 1. Hero/Header Section
+    hero_section = generator.fetch_sections(['main']).get('main')
+    if hero_section:
+        hero_img_url = None
+        if site_data['main_image']:
+            hero_img_url = site_data['main_image']
+        else:
+            hero_img_url = get_image_for_element(style_description, 'main', 'image_widget')
+        if hero_img_url:
+            hero_section['image'] = hero_img_url
+        hero_section['title'] = site_data['business_name']
+        hero_section['subtitle'] = transformer.transform_post_content_gpt(site_data['tagline'], style_description)
+
+    # 2. About Section
+    about_section = generator.fetch_sections(['about']).get('about')
+    if about_section:
+        about_section['title'] = 'About Us'
+        about_section['content'] = transformer.transform_post_content_gpt(site_data['about'], style_description)
+        about_section['address'] = site_data['address']
+        about_section['phone'] = site_data['phone']
+        about_section['website'] = site_data['website']
+
+    # 3. Gallery Section
+    gallery_section = generator.fetch_sections(['portfolio', 'gallery']).get('gallery')
+    if gallery_section:
+        gallery_images = []
+        for img_ref in site_data['gallery']:
+            gallery_images.append(img_ref)
+        if not gallery_images:
+            unsplash_img = get_image_for_element(style_description, 'gallery', 'gallery_item')
+            if unsplash_img:
+                gallery_images.append(unsplash_img)
+        gallery_section['images'] = gallery_images
+
+    # 4. Reviews Section
+    reviews_section = generator.fetch_sections(['testimonials', 'reviews']).get('testimonials')
+    if reviews_section:
+        reviews = []
+        for r in site_data['reviews']:
+            reviews.append({
+                'author': r.get('author_name'),
+                'text': r.get('text'),
+                'rating': r.get('rating'),
+                'profile_photo_url': r.get('profile_photo_url')
+            })
+        reviews_section['reviews'] = reviews
+
+    # 5. Map Section
+    map_section = generator.fetch_sections(['map']).get('map')
+    if map_section:
+        map_section['lat'] = site_data['lat']
+        map_section['lng'] = site_data['lng']
+
+    # 6. Footer Section
+    footer_section = generator.fetch_sections(['footer']).get('footer')
+    if footer_section:
+        footer_section['address'] = site_data['footer']['address']
+        footer_section['phone'] = site_data['footer']['phone']
+        footer_section['website'] = site_data['footer']['website']
+        footer_section['opening_hours'] = site_data['footer']['opening_hours']
+
+    # Compose Elementor data for the page
+    elementor_data = []
+    for sec in [hero_section, about_section, gallery_section, reviews_section, map_section, footer_section]:
+        if sec:
+            elementor_data.append(sec)
+
+    # Build WXR XML using OnePageSiteGenerator logic
+    rss = generator.create_base_template()
+    channel = rss.find('channel')
+    item = ET.SubElement(channel, 'item')
+    title = ET.SubElement(item, 'title')
+    title.text = site_data['business_name']
+    link = ET.SubElement(item, 'link')
+    link.text = site_data['website'] or 'https://example.com/'
+    pubDate = ET.SubElement(item, 'pubDate')
+    pubDate.text = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0000')
+    creator = ET.SubElement(item, '{http://purl.org/dc/elements/1.1/}creator')
+    creator.text = 'admin'
+    guid = ET.SubElement(item, 'guid')
+    guid.set('isPermaLink', 'false')
+    guid.text = f'https://example.com/?page_id=1'
+    description = ET.SubElement(item, 'description')
+    description.text = ''
+    content = ET.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
+    content.text = ''
+    excerpt = ET.SubElement(item, '{http://wordpress.org/export/1.2/excerpt/}encoded')
+    excerpt.text = ''
+    post_id = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_id')
+    post_id.text = '1'
+    post_date = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_date')
+    post_date.text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    post_date_gmt = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_date_gmt')
+    post_date_gmt.text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    comment_status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}comment_status')
+    comment_status.text = 'closed'
+    ping_status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}ping_status')
+    ping_status.text = 'closed'
+    post_name = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_name')
+    post_name.text = 'home'
+    status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}status')
+    status.text = 'publish'
+    post_parent = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_parent')
+    post_parent.text = '0'
+    menu_order = ET.SubElement(item, '{http://wordpress.org/export/1.2/}menu_order')
+    menu_order.text = '0'
+    post_type = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_type')
+    post_type.text = 'page'
+    post_password = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_password')
+    post_password.text = ''
+    is_sticky = ET.SubElement(item, '{http://wordpress.org/export/1.2/}is_sticky')
+    is_sticky.text = '0'
+    # Elementor meta
+    meta_elementor = ET.SubElement(item, '{http://wordpress.org/export/1.2/}postmeta')
+    meta_key = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_key')
+    meta_key.text = '_elementor_data'
+    meta_value = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_value')
+    meta_value.text = json.dumps(elementor_data)
+    # Write XML to string
+    xml_str = ET.tostring(rss, encoding='utf-8', method='xml').decode('utf-8')
+    return xml_str
+
+@app.post("/generate/google-onepage")
+async def generate_google_onepage(
+    request: GoogleOnePageRequest,
+    background_tasks: BackgroundTasks
+):
+    """Generate a one-page WordPress site from Google Places API data"""
+    try:
+        job_id = str(uuid.uuid4())
+        created_at = datetime.utcnow().isoformat()
+        orchestrator.jobs[job_id] = {
+            'id': job_id,
+            'status': 'queued',
+            'created_at': created_at,
+            'type': 'google_onepage',
+            'style_description': request.style_description,
+            'replace_images': request.replace_images
+        }
+        # Map Google data to internal structure
+        site_data = build_google_onepage_structure(request.google_data)
+        # Generate XML (replace with your real generator)
+        xml_content = generate_google_onepage_xml(site_data, request.style_description, request.replace_images)
+        # Save XML to output
+        output_path = os.path.join(orchestrator.base_dir, "output", f"{job_id}.xml")
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(xml_content)
+        orchestrator.jobs[job_id].update({
+            "status": "completed",
+            "completed_at": datetime.utcnow().isoformat(),
+            "output_url": f"/download/{job_id}",
+            "output_path": output_path
+        })
+        return TransformationResponse(
+            job_id=job_id,
+            status='queued',
+            created_at=created_at,
+            message='Google one-page site generation started'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/transform")
 async def transform_theme(
@@ -850,6 +1094,7 @@ async def transform_theme(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/generate/onepage")
 async def generate_onepage_theme(
     request: OnePageSiteRequest,
@@ -860,7 +1105,6 @@ async def generate_onepage_theme(
         # Generate unique job ID
         job_id = str(uuid.uuid4())
         created_at = datetime.utcnow().isoformat()
-        
         # Create job record
         orchestrator.jobs[job_id] = {
             'id': job_id,
@@ -871,55 +1115,22 @@ async def generate_onepage_theme(
             'type': 'onepage',
             'replace_images': request.replace_images
         }
-        
         # Start generation in background
         background_tasks.add_task(
             orchestrator.generate_one_page_site,
             job_id,
             request.query,
             request.style_description,
-            request.replace_images  # Pass replace_images parameter
+            request.replace_images
         )
-        
         return TransformationResponse(
             job_id=job_id,
             status='queued',
             created_at=created_at,
             message='Single-page theme generation started'
         )
-        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/evaluate/sections")
-async def evaluate_theme_sections(request: SectionEvaluationRequest):
-    """Evaluate and categorize all sections in a theme using enhanced Elementor data analysis"""
-    try:
-        # Log the request
-        logging.info(f"Received section evaluation request for theme ID: {request.theme_id}")
-        logging.info(f"Using enhanced Elementor data analysis for more accurate section categorization")
-        
-        # Validate theme ID
-        if not request.theme_id:
-            raise HTTPException(status_code=400, detail="Theme ID is required")
-            
-        # Evaluate sections
-        result = orchestrator.section_evaluator.evaluate_theme_sections(request.theme_id)
-        
-        # Add detailed analysis information to the response
-        result["detailed_analysis_used"] = request.detailed_analysis
-        result["evaluated_at"] = datetime.utcnow().isoformat()
-        
-        return JSONResponse(content=result)
-        
-    except ValueError as e:
-        logging.error(f"Value error in section evaluation: {str(e)}")
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logging.error(f"Error evaluating sections: {str(e)}")
-        logging.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Error evaluating sections: {str(e)}")
-        
 
 @app.post("/generate/multipage")
 async def generate_multipage_theme(
