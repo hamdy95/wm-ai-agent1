@@ -301,6 +301,7 @@ class ContentTransformationAgent:
                         "content": (
                             "You are a professional content transformer for a WordPress theme. "
                             "Transform each text to match the requested style while:\n"
+                            "Make sure when the user ask you content in arabic transform all the content in arabic and when he ask for english transform all content in English do not generate mixed languages"
                             "1. Always generate a new, meaningful, and relevant text for every input, never returning any text unchanged (even for lorem ipsum, dummy, or placeholder text in any language, including Arabic).\n"
                             "2. If the text is lorem ipsum, placeholder, or dummy text (in any language), always replace it with real, relevant content for the requested style and language.\n"
                             "3. Preserve the core meaning and key information if present.\n"
@@ -320,7 +321,7 @@ class ContentTransformationAgent:
                     response = self.client.chat.completions.create(
                         model="gpt-4.1",
                         messages=messages,
-                        temperature=0.4,
+                        temperature=0.3,
                         max_tokens=2048
                     )
                     response_text = response.choices[0].message.content
