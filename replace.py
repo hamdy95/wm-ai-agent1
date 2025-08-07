@@ -10,12 +10,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'offline'))
 # Check if color_utils is available
 try:
     # First try direct import after adding the path
-    from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping
+    from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, apply_alternating_section_colors, create_smart_elementor_mapping
     print("Successfully imported color_utils directly.")
 except ImportError:
     try:
         # Fall back to qualified import
-        from offline.color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping
+        from offline.color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, apply_alternating_section_colors, create_smart_elementor_mapping
         print("Successfully imported color_utils with offline prefix.")
     except ImportError:
         print("Warning: Could not import color_utils. Color mapping will use legacy method.")
@@ -167,13 +167,26 @@ def scan_background_colors(elementor_data):
     # This allows the color mapping to apply to all backgrounds
     return {}
 
-def process_elementor_data(elementor_data, generic_color_map, white_bg_colors, specific_palette_map=None):
-    """Process colors in Elementor data using color mappings."""
+def process_elementor_data(elementor_data, generic_color_map, white_bg_colors, specific_palette_map=None, style_description=None):
+    """Process colors in Elementor data using smart alternating section colors."""
     if specific_palette_map:
         print(f"INFO: process_elementor_data called with specific_palette_map (size: {len(specific_palette_map)}) and generic_color_map (size: {len(generic_color_map)}).") 
     else:
         print(f"INFO: process_elementor_data called with ONLY generic_color_map (size: {len(generic_color_map)}). specific_palette_map is None.")
 
+    # If we have a style description, use the new smart alternating color system
+    if style_description:
+        print(f"Applying smart alternating section colors based on style: {style_description}")
+        try:
+            # Apply the alternating section color system
+            modified_data = apply_alternating_section_colors(elementor_data, style_description)
+            print("Successfully applied alternating section color system")
+            return modified_data
+        except Exception as e:
+            print(f"Error applying alternating section colors: {e}")
+            print("Falling back to legacy color mapping")
+    
+    # Fallback to legacy color processing if no style description or if alternating system fails
     modified_data = []
     # Keep track of actual replacements made by this function
     replacements_from_specific_map = 0
@@ -707,7 +720,8 @@ def replace_text_and_colors(xml_file_path, json_file_path, output_file_path, ver
                         elementor_data, 
                         generic_color_map=color_map,  # This is the map from color_palette or legacy transformations
                         white_bg_colors=white_colors, 
-                        specific_palette_map=elementor_color_map # This is the map from GPT-4o via create_color_mapping
+                        specific_palette_map=elementor_color_map, # This is the map from GPT-4o via create_color_mapping
+                        style_description=style_description # Pass the style description
                     )
                     
                     # Process images if requested and available
@@ -715,7 +729,8 @@ def replace_text_and_colors(xml_file_path, json_file_path, output_file_path, ver
                         modified_data = process_elementor_images(modified_data, data.get("style_description", ""))
                         image_replaced_count += 1
                     
-                    item.text = json.dumps(modified_data)
+                    # Fix JSON serialization to prevent double escaping
+                    item.text = json.dumps(modified_data, ensure_ascii=False, separators=(',', ':'))
                     color_replaced_count += 1
             except json.JSONDecodeError as e:
                 print(f"Error decoding Elementor data: {e}")
