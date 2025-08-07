@@ -504,7 +504,10 @@ class OnePageSiteGenerator:
         meta_key = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_key')
         meta_key.text = '_elementor_data'
         meta_value = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_value')
-        meta_value.text = json.dumps(elementor_data)
+        
+        # Fix JSON serialization to prevent double escaping
+        # Use plain text instead of CDATA to avoid recursion issues
+        meta_value.text = json.dumps(elementor_data, ensure_ascii=False, separators=(',', ':'))
         
         # Add Elementor edit mode meta
         meta_edit_mode = ET.SubElement(item, '{http://wordpress.org/export/1.2/}postmeta')
