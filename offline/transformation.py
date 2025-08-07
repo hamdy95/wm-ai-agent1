@@ -2,7 +2,7 @@ import datetime
 import json
 from openai import OpenAI
 import re
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -12,23 +12,237 @@ import traceback
 import html
 from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping
 
+def extract_business_info_from_gbp(gbp_data: str) -> Optional[Dict]:
+    """
+    Extract and format business information from a GBP object string.
+    Returns None if no valid GBP data is found.
+    """
+    try:
+        # Try to parse the GBP data
+        if isinstance(gbp_data, str):
+            gbp_object = json.loads(gbp_data)
+        else:
+            gbp_object = gbp_data
+        
+        # Handle both direct result format and full Google Places API response
+        if "result" in gbp_object:
+            result = gbp_object["result"]
+        else:
+            result = gbp_object
+        
+        # Extract business information
+        business_info = {
+            "business_name": result.get("name", ""),
+            "address": result.get("formatted_address", ""),
+            "phone": result.get("formatted_phone_number", ""),
+            "international_phone": result.get("international_phone_number", ""),
+            "website": result.get("website", ""),
+            "business_status": result.get("business_status", ""),
+            "rating": result.get("rating", 0),
+            "total_reviews": result.get("user_ratings_total", 0),
+            "place_id": result.get("place_id", ""),
+            "url": result.get("url", ""),
+            "vicinity": result.get("vicinity", ""),
+            "geometry": result.get("geometry", {}),
+            "types": result.get("types", []),
+            "utc_offset": result.get("utc_offset", 0),
+            "icon": result.get("icon", ""),
+            "icon_background_color": result.get("icon_background_color", ""),
+            "plus_code": result.get("plus_code", {}),
+            "adr_address": result.get("adr_address", ""),
+            "address_components": result.get("address_components", []),
+            "html_attributions": gbp_object.get("html_attributions", []),
+            "reference": result.get("reference", ""),
+            "status": gbp_object.get("status", "")
+        }
+        
+        # Process opening hours
+        opening_hours = {}
+        if result.get("opening_hours"):
+            opening_hours = {
+                "open_now": result["opening_hours"].get("open_now", False),
+                "weekday_text": result["opening_hours"].get("weekday_text", []),
+                "periods": result["opening_hours"].get("periods", [])
+            }
+        
+        # Also check current_opening_hours if available
+        if result.get("current_opening_hours"):
+            opening_hours.update({
+                "current_open_now": result["current_opening_hours"].get("open_now", False),
+                "current_weekday_text": result["current_opening_hours"].get("weekday_text", []),
+                "current_periods": result["current_opening_hours"].get("periods", [])
+            })
+        
+        business_info["opening_hours"] = opening_hours
+        
+        # Process reviews
+        reviews = []
+        if result.get("reviews"):
+            for review in result["reviews"]:
+                if isinstance(review, dict):
+                    review_info = {
+                        "author_name": review.get("author_name", ""),
+                        "author_url": review.get("author_url", ""),
+                        "profile_photo_url": review.get("profile_photo_url", ""),
+                        "rating": review.get("rating", 0),
+                        "text": review.get("text", ""),
+                        "time": review.get("time", 0),
+                        "relative_time_description": review.get("relative_time_description", ""),
+                        "language": review.get("language", "")
+                    }
+                    reviews.append(review_info)
+        
+        business_info["reviews"] = reviews
+        
+        # Process photos (just the metadata, not the actual images)
+        photos = []
+        if result.get("photos"):
+            for photo in result["photos"]:
+                if isinstance(photo, dict):
+                    photo_info = {
+                        "photo_reference": photo.get("photo_reference", ""),
+                        "height": photo.get("height", 0),
+                        "width": photo.get("width", 0),
+                        "html_attributions": photo.get("html_attributions", [])
+                    }
+                    photos.append(photo_info)
+        
+        business_info["photos"] = photos
+        
+        return business_info
+        
+    except Exception as e:
+        print(f"Error extracting business info from GBP data: {e}")
+        return None
+
+def format_business_info_for_prompt(business_info: Dict) -> str:
+    """
+    Format business information into a structured prompt for GPT.
+    """
+    if not business_info:
+        return ""
+    
+    formatted_info = []
+    
+    # Basic business information
+    if business_info.get("business_name"):
+        formatted_info.append(f"Business Name: {business_info['business_name']}")
+    
+    if business_info.get("address"):
+        formatted_info.append(f"Address: {business_info['address']}")
+    
+    if business_info.get("phone"):
+        formatted_info.append(f"Phone: {business_info['phone']}")
+    
+    if business_info.get("international_phone"):
+        formatted_info.append(f"International Phone: {business_info['international_phone']}")
+    
+    if business_info.get("website"):
+        formatted_info.append(f"Website: {business_info['website']}")
+    
+    if business_info.get("rating"):
+        formatted_info.append(f"Rating: {business_info['rating']} stars from {business_info.get('total_reviews', 0)} reviews")
+    
+    # Opening hours
+    opening_hours = business_info.get("opening_hours", {})
+    if opening_hours:
+        weekday_text = opening_hours.get("weekday_text", [])
+        current_weekday_text = opening_hours.get("current_weekday_text", [])
+        
+        if weekday_text:
+            formatted_info.append("Opening Hours:")
+            for day in weekday_text:
+                formatted_info.append(f"  {day}")
+        elif current_weekday_text:
+            formatted_info.append("Opening Hours:")
+            for day in current_weekday_text:
+                formatted_info.append(f"  {day}")
+    
+    # Reviews
+    reviews = business_info.get("reviews", [])
+    if reviews:
+        formatted_info.append("Customer Reviews:")
+        for i, review in enumerate(reviews[:5]):  # Show first 5 reviews
+            author = review.get("author_name", "Anonymous")
+            text = review.get("text", "").strip()
+            rating = review.get("rating", 0)
+            time_desc = review.get("relative_time_description", "")
+            
+            if text:  # Only include reviews with text
+                formatted_info.append(f"  {author} ({rating} stars, {time_desc}): '{text}'")
+            else:
+                formatted_info.append(f"  {author} ({rating} stars, {time_desc}): Rating only")
+    
+    # Business details
+    if business_info.get("business_status"):
+        formatted_info.append(f"Status: {business_info['business_status']}")
+    
+    if business_info.get("vicinity"):
+        formatted_info.append(f"Location: {business_info['vicinity']}")
+    
+    return "\n".join(formatted_info)
+
 class ContentTransformationAgent:
     def transform_posts(self, posts: List[Dict], style_description: str) -> List[Dict]:
         """
         For each post, transform both the title and content using GPT-4.1, and return a list of dicts with post_id, post_type, original_title, transformed_title, original, transformed.
         """
+        # Check if style_description contains GBP data
+        business_info = None
+        business_prompt = ""
+        final_style_description = style_description
+        
+        # Try to extract business information from the style description
+        try:
+            # Look for JSON-like content in the style description
+            json_pattern = r'\{.*"result".*\}'
+            json_matches = re.findall(json_pattern, style_description, re.DOTALL)
+            
+            if json_matches:
+                # Found potential GBP data
+                gbp_data = json_matches[0]
+                business_info = extract_business_info_from_gbp(gbp_data)
+                
+                if business_info:
+                    print(f"✅ Extracted business information for posts: {business_info.get('business_name', 'Unknown Business')}")
+                    business_prompt = format_business_info_for_prompt(business_info)
+                    
+                    # Remove the JSON from the style description to avoid confusion
+                    final_style_description = re.sub(json_pattern, '', style_description, flags=re.DOTALL).strip()
+                    
+                    # If no style description left, use a default one
+                    if not final_style_description:
+                        final_style_description = "modern professional business website"
+                else:
+                    print("⚠️  Found JSON in style description but couldn't extract business info for posts")
+            else:
+                print("ℹ️  No GBP data found in style description for posts, proceeding with normal transformation")
+                
+        except Exception as e:
+            print(f"⚠️  Error processing style description for business info in posts: {e}")
+        
         results = []
         for post in posts:
             post_id = post.get('wp_post_id')
             post_type = post.get('post_type', '')
             original_title = post.get('original_title', '')
             original_content = post.get('original_content', '')
+            
             # Transform title
-            prompt_title = (
-                f"Transform this WordPress post title for: {style_description}\n"
-                f"Original title: {original_title}\n"
-                "Return only the new, transformed title, making it relevant to the style/business. Do NOT return any unchanged text."
-            )
+            if business_info and business_prompt:
+                prompt_title = (
+                    f"Transform this WordPress post title for: {final_style_description}\n"
+                    f"Use this business information:\n{business_prompt}\n\n"
+                    f"Original title: {original_title}\n"
+                    "Return only the new, transformed title, making it relevant to this specific business and style. Do NOT return any unchanged text."
+                )
+            else:
+                prompt_title = (
+                    f"Transform this WordPress post title for: {final_style_description}\n"
+                    f"Original title: {original_title}\n"
+                    "Return only the new, transformed title, making it relevant to the style/business. Do NOT return any unchanged text."
+                )
+            
             try:
                 response_title = self.client.chat.completions.create(
                     model="gpt-4.1",
@@ -43,6 +257,7 @@ class ContentTransformationAgent:
             except Exception as e:
                 print(f"Error transforming post title for post_id {post_id}: {e}")
                 transformed_title = original_title
+            
             # Transform content
             transformed_content = self.transform_post_content_gpt(original_content, style_description)
             results.append({
@@ -59,16 +274,70 @@ class ContentTransformationAgent:
         Transform a WordPress post's HTML content using GPT-4.1, preserving all HTML structure and block comments.
         The output will have all visible text rewritten to match the requested style/business, but all HTML tags and structure will be preserved.
         """
+        # Check if style_description contains GBP data
+        business_info = None
+        business_prompt = ""
+        final_style_description = style_description
+        
+        # Try to extract business information from the style description
+        try:
+            # Look for JSON-like content in the style description
+            json_pattern = r'\{.*"result".*\}'
+            json_matches = re.findall(json_pattern, style_description, re.DOTALL)
+            
+            if json_matches:
+                # Found potential GBP data
+                gbp_data = json_matches[0]
+                business_info = extract_business_info_from_gbp(gbp_data)
+                
+                if business_info:
+                    print(f"✅ Extracted business information for post content: {business_info.get('business_name', 'Unknown Business')}")
+                    business_prompt = format_business_info_for_prompt(business_info)
+                    
+                    # Remove the JSON from the style description to avoid confusion
+                    final_style_description = re.sub(json_pattern, '', style_description, flags=re.DOTALL).strip()
+                    
+                    # If no style description left, use a default one
+                    if not final_style_description:
+                        final_style_description = "modern professional business website"
+                else:
+                    print("⚠️  Found JSON in style description but couldn't extract business info for post content")
+            else:
+                print("ℹ️  No GBP data found in style description for post content, proceeding with normal transformation")
+                
+        except Exception as e:
+            print(f"⚠️  Error processing style description for business info in post content: {e}")
+        
+        # Prepare the system message based on whether we have business info
+        if business_info and business_prompt:
+            system_content = (
+                "You are a professional WordPress post transformer. "
+                "IMPORTANT: The following business information must be preserved exactly as provided and used in the content:\n\n"
+                f"{business_prompt}\n\n"
+                "When transforming content, use this business information to create relevant, accurate content. "
+                "For reviews, use the exact reviewer names, ratings, and text provided. "
+                "For business details, use the exact name, address, phone, website, and hours provided. "
+                "Always transform all visible text, including inside HTML and block comments, but preserve the HTML structure and all tags. "
+                "Never return unchanged text."
+            )
+        else:
+            system_content = (
+                "You are a professional WordPress post transformer. "
+                "Always transform all visible text, including inside HTML and block comments, but preserve the HTML structure and all tags. "
+                "Never return unchanged text."
+            )
+        
         prompt = (
-            f"Transform the following WordPress post HTML content for: {style_description}\n"
+            f"Transform the following WordPress post HTML content for: {final_style_description}\n"
             f"Original HTML content (including all block comments and tags):\n{original_content}\n"
             "Return only the new, transformed HTML content, keeping the structure and blocks, but making all text relevant to the style/business. Do NOT return any unchanged text."
         )
+        
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4.1",
                 messages=[
-                    {"role": "system", "content": "You are a professional WordPress post transformer. Always transform all visible text, including inside HTML and block comments, but preserve the HTML structure and all tags. Never return unchanged text."},
+                    {"role": "system", "content": system_content},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.5,
@@ -289,39 +558,100 @@ class ContentTransformationAgent:
                 'سيت أميت' in text_lower or
                 'dummy text' in text_lower
             )
+        
+        # Check if style_description contains GBP data
+        business_info = None
+        business_prompt = ""
+        final_style_description = style_description
+        
+        # Try to extract business information from the style description
+        try:
+            # Look for JSON-like content in the style description
+            json_pattern = r'\{.*"result".*\}'
+            json_matches = re.findall(json_pattern, style_description, re.DOTALL)
+            
+            if json_matches:
+                # Found potential GBP data
+                gbp_data = json_matches[0]
+                business_info = extract_business_info_from_gbp(gbp_data)
+                
+                if business_info:
+                    print(f"✅ Extracted business information for: {business_info.get('business_name', 'Unknown Business')}")
+                    business_prompt = format_business_info_for_prompt(business_info)
+                    
+                    # Remove the JSON from the style description to avoid confusion
+                    final_style_description = re.sub(json_pattern, '', style_description, flags=re.DOTALL).strip()
+                    
+                    # If no style description left, use a default one
+                    if not final_style_description:
+                        final_style_description = "modern professional business website"
+                    
+                    print(f"📝 Business prompt prepared with {len(business_info.get('reviews', []))} reviews and business details")
+                else:
+                    print("⚠️  Found JSON in style description but couldn't extract business info")
+            else:
+                print("ℹ️  No GBP data found in style description, proceeding with normal transformation")
+                
+        except Exception as e:
+            print(f"⚠️  Error processing style description for business info: {e}")
+        
         try:
             valid_texts = [text for text in texts if text and len(text.strip()) > 0]
             batch_size = 10
             transformed_pairs = []
+            
             for i in range(0, len(valid_texts), batch_size):
                 batch = valid_texts[i:i + batch_size]
+                
+                # Prepare the system message based on whether we have business info
+                if business_info and business_prompt:
+                    system_content = (
+                        "You are a professional content transformer for a WordPress theme. "
+                        "IMPORTANT: The following business information must be preserved exactly as provided and used in the content:\n\n"
+                        f"{business_prompt}\n\n"
+                        "When transforming content, use this business information to create relevant, accurate content. "
+                        "For reviews, use the exact reviewer names, ratings, and text provided. "
+                        "For business details, use the exact name, address, phone, website, and hours provided. "
+                        "Transform each text to match the requested style while:\n"
+                        "1. Always generate new, meaningful content that incorporates the provided business information.\n"
+                        "2. If the text is lorem ipsum, placeholder, or dummy text, replace it with real content about this specific business.\n"
+                        "3. Preserve the core meaning and key information if present.\n"
+                        "4. Maintain similar length and structure.\n"
+                        "5. Make content relevant to this specific business and the requested style.\n"
+                        "6. Keep function words (buttons, labels, etc.) concise and action-oriented.\n"
+                        "7. Prevent any special characters from being used in the transformed text.\n"
+                        "Format: For each text return exactly:\nORIGINAL: [original text]\nNEW: [transformed text]"
+                    )
+                else:
+                    system_content = (
+                        "You are a professional content transformer for a WordPress theme. "
+                        "Transform each text to match the requested style while:\n"
+                        "1. Always generate a new, meaningful, and relevant text for every input, never returning any text unchanged (even for lorem ipsum, dummy, or placeholder text in any language, including Arabic).\n"
+                        "2. If the text is lorem ipsum, placeholder, or dummy text (in any language), always replace it with real, relevant content for the requested style and language.\n"
+                        "3. Preserve the core meaning and key information if present.\n"
+                        "4. Maintain similar length and structure.\n"
+                        "5. Make content relevant to the requested style/business type.\n"
+                        "6. Keep function words (buttons, labels, etc.) concise and action-oriented.\n"
+                        "7. Prevent any special characters from being used in the transformed text.\n"
+                        "Format: For each text return exactly:\nORIGINAL: [original text]\nNEW: [transformed text]"
+                    )
+                
                 messages = [
                     {
                         "role": "system",
-                        "content": (
-                            "You are a professional content transformer for a WordPress theme. "
-                            "Transform each text to match the requested style while:\n"
-                            "Make sure when the user ask you content in arabic transform all the content in arabic and when he ask for english transform all content in English do not generate mixed languages"
-                            "1. Always generate a new, meaningful, and relevant text for every input, never returning any text unchanged (even for lorem ipsum, dummy, or placeholder text in any language, including Arabic).\n"
-                            "2. If the text is lorem ipsum, placeholder, or dummy text (in any language), always replace it with real, relevant content for the requested style and language.\n"
-                            "3. Preserve the core meaning and key information if present.\n"
-                            "4. Maintain similar length and structure.\n"
-                            "5. Make content relevant to the requested style/business type.\n"
-                            "6. Keep function words (buttons, labels, etc.) concise and action-oriented.\n"
-                            "7. Prevent any special characters from being used in the transformed text.\n"
-                            "Format: For each text return exactly:\nORIGINAL: [original text]\nNEW: [transformed text]"
-                        )
+                        "content": system_content
                     },
                     {
                         "role": "user",
-                        "content": f"""Transform these texts for: {style_description}\n\nOriginal texts:\n{json.dumps(batch, indent=2)}\n\nReturn each transformation in the format:\nORIGINAL: [text]\nNEW: [transformed text]"""
+                        "content": f"""Transform these texts for: {final_style_description}\n\nOriginal texts:\n{json.dumps(batch, indent=2)}\n\nReturn each transformation in the format:\nORIGINAL: [text]\nNEW: [transformed text]"""
                     }
                 ]
+                
                 try:
                     response = self.client.chat.completions.create(
                         model="gpt-4.1",
                         messages=messages,
-                        temperature=0.3,
+                        temperature=0.5,
                         max_tokens=2048
                     )
                     response_text = response.choices[0].message.content
@@ -348,14 +678,19 @@ class ContentTransformationAgent:
                             "original": text,
                             "transformed": text
                         })
+            
             # Post-process: re-transform any text that still looks like lorem/placeholder
             for pair in transformed_pairs:
                 if is_lorem(pair['transformed']):
                     print(f"Re-transforming placeholder/lorem text: {pair['transformed']}")
                     # Re-transform with a direct prompt
                     try:
+                        re_transform_prompt = "Replace this placeholder or lorem ipsum text (in any language) with real, relevant content for: " + final_style_description
+                        if business_info:
+                            re_transform_prompt += f"\n\nUse this business information:\n{business_prompt}"
+                        
                         messages = [
-                            {"role": "system", "content": "Replace this placeholder or lorem ipsum text (in any language) with real, relevant content for: " + style_description},
+                            {"role": "system", "content": re_transform_prompt},
                             {"role": "user", "content": pair['transformed']}
                         ]
                         response = self.client.chat.completions.create(
@@ -369,16 +704,19 @@ class ContentTransformationAgent:
                             pair['transformed'] = new_text
                     except Exception as e:
                         print(f"Error in re-transforming placeholder: {e}")
-            transformed_colors = self._transform_colors(colors, style_description)
+            
+            transformed_colors = self._transform_colors(colors, final_style_description)
             return {
                 "text_transformations": transformed_pairs,
-                "color_palette": transformed_colors.get('color_palette', {})
+                "color_palette": transformed_colors.get('color_palette', {}),
+                "business_info": business_info
             }
         except Exception as e:
             print(f"Error generating transformed content: {e}")
             return {
                 "text_transformations": [{"original": t, "transformed": t} for t in texts],
-                "color_palette": {"original_colors": colors, "new_colors": colors}
+                "color_palette": {"original_colors": colors, "new_colors": colors},
+                "business_info": business_info
             }
 
     def _transform_colors(self, colors: List[str], style_description: str) -> Dict:
