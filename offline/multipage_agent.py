@@ -60,76 +60,144 @@ class MultiPageSiteGenerator:
         self.primary_pages = ['home', 'about', 'services', 'portfolio', 'blog', 'contact']
 
     def parse_user_query(self, query: str) -> List[str]:
-        """Parse user query to identify required pages"""
+        """Parse user query to identify required pages - only return exactly what was requested"""
         query = query.lower()
         requested_pages = []
         
-        # Look for page keywords in the query
-        for page_type, keywords in self.page_mapping.items():
-            for keyword in keywords:
-                if keyword in query:
+        # Define exact page name mappings for better matching
+        page_name_mappings = {
+            'home': ['home', 'homepage', 'main', 'index', 'landing'],
+            'about': ['about', 'about us', 'about-us', 'company', 'who we are', 'our story'],
+            'services': ['services', 'service', 'what we do', 'offerings', 'solutions', 'our services'],
+            'portfolio': ['portfolio', 'work', 'projects', 'gallery', 'our work', 'case studies'],
+            'contact': ['contact', 'contact us', 'contact-us', 'get in touch', 'reach us', 'location'],
+            'blog': ['blog', 'news', 'articles', 'posts'],
+            'team': ['team', 'our team', 'members', 'staff', 'our people'],
+            'testimonials': ['testimonials', 'reviews', 'what clients say', 'client reviews'],
+            'pricing': ['pricing', 'plans', 'packages', 'subscriptions', 'prices'],
+            'faq': ['faq', 'questions', 'answers', 'help', 'support', 'frequently asked'],
+            'products': ['products', 'shop', 'store', 'merchandise', 'product']
+        }
+        
+        # First, look for exact page names in the query
+        # Split query by common separators to find individual page names
+        import re
+        
+        # Common patterns for page lists
+        patterns = [
+            r'(\w+(?:\s+\w+)*)',  # Match words that could be page names
+            r'([^,]+)',  # Match anything between commas
+            r'(\w+(?:\s+us)?)',  # Match "contact us" type patterns
+        ]
+        
+        # Extract potential page names from the query
+        potential_pages = []
+        for pattern in patterns:
+            matches = re.findall(pattern, query)
+            for match in matches:
+                match = match.strip()
+                if len(match) > 2:  # Only consider meaningful matches
+                    potential_pages.append(match)
+        
+        # Now match these potential pages against our page mappings
+        for potential_page in potential_pages:
+            for page_type, variations in page_name_mappings.items():
+                if any(variation in potential_page or potential_page in variation for variation in variations):
                     if page_type not in requested_pages:
                         requested_pages.append(page_type)
+                        print(f"Found page type '{page_type}' from query: '{potential_page}'")
                     break
         
-        # Check for specific requests like "I need 5 pages"
-        num_pages_match = re.search(r'(\d+)\s+pages', query)
+        # If no pages found with exact matching, try the original keyword approach
+        # but be more conservative
+        if not requested_pages:
+            print("No exact matches found, trying keyword search...")
+            for page_type, keywords in page_name_mappings.items():
+                for keyword in keywords:
+                    if keyword in query:
+                        if page_type not in requested_pages:
+                            requested_pages.append(page_type)
+                            print(f"Found page type '{page_type}' via keyword: '{keyword}'")
+                        break
+        
+        # Check for specific count requests like "I need 5 pages"
+        num_pages_match = re.search(r'(\d+)\s+pages?', query)
         if num_pages_match:
             num_pages = int(num_pages_match.group(1))
-            if len(requested_pages) < num_pages:
-                # Add more pages to meet the requested count
-                available_pages = list(self.page_mapping.keys())
-                # Remove already requested pages
-                for page in requested_pages:
-                    if page in available_pages:
-                        available_pages.remove(page)
-                
-                # Prioritize primary pages first
-                primary_candidates = [p for p in self.primary_pages if p in available_pages]
-                secondary_candidates = [p for p in available_pages if p not in self.primary_pages]
-                
-                # Calculate how many more pages we need
-                pages_needed = num_pages - len(requested_pages)
-                
-                # Select from primary pages first
-                primary_to_add = min(pages_needed, len(primary_candidates))
-                if primary_to_add > 0:
-                    additional_primary = random.sample(primary_candidates, primary_to_add)
-                    requested_pages.extend(additional_primary)
-                    pages_needed -= primary_to_add
-                
-                # Then from secondary pages if needed
-                if pages_needed > 0 and secondary_candidates:
-                    additional_secondary = random.sample(secondary_candidates, 
-                                                     min(pages_needed, len(secondary_candidates)))
-                    requested_pages.extend(additional_secondary)
+            print(f"User requested {num_pages} pages, found {len(requested_pages)}")
+            
+            # Only add more pages if we have fewer than requested AND the user didn't specify exact pages
+            if len(requested_pages) < num_pages and len(requested_pages) == 0:
+                # User asked for a number but didn't specify which pages
+                # Add default pages to meet the count
+                available_pages = list(page_name_mappings.keys())
+                pages_to_add = min(num_pages, len(available_pages))
+                requested_pages = available_pages[:pages_to_add]
+                print(f"Added {pages_to_add} default pages to meet count requirement")
+            elif len(requested_pages) < num_pages:
+                # User specified some pages but we need more to meet the count
+                print(f"Warning: User requested {num_pages} pages but only specified {len(requested_pages)}")
+                # Don't add extra pages - respect what the user actually asked for
         
-        # Make sure we have at least a home page
-        if not requested_pages or 'home' not in requested_pages:
-            requested_pages.insert(0, 'home')
+        # Only add home page if user explicitly requested it or if no pages were found
+        if not requested_pages:
+            requested_pages = ['home']
+            print("No pages found, defaulting to home page")
+        elif 'home' not in requested_pages and len(requested_pages) == 1:
+            # If user only specified one page and it's not home, don't add home automatically
+            pass
+        elif 'home' not in requested_pages:
+            # Only add home if user specified multiple pages but didn't include home
+            # This is optional - let's not add it automatically
+            pass
         
-        # Order pages in a logical way (home first, contact typically last)
+        # Order pages in a logical way, but respect user's order when possible
         ordered_pages = []
         
-        # Order by the primary pages list
-        for page in self.primary_pages:
-            if page in requested_pages:
-                ordered_pages.append(page)
-                requested_pages.remove(page)
-        
-        # Add any remaining pages
-        ordered_pages.extend(requested_pages)
+        # If user specified pages in a certain order, try to maintain that order
+        # by checking the original query for the order
+        query_lower = query.lower()
+        for page_type in requested_pages:
+            # Find the position of this page type in the original query
+            best_position = -1
+            for variation in page_name_mappings.get(page_type, [page_type]):
+                pos = query_lower.find(variation)
+                if pos != -1 and (best_position == -1 or pos < best_position):
+                    best_position = pos
             
-        return ordered_pages
+            if best_position != -1:
+                ordered_pages.append((best_position, page_type))
+        
+        # Sort by position in query
+        ordered_pages.sort(key=lambda x: x[0])
+        final_pages = [page_type for _, page_type in ordered_pages]
+        
+        # If we couldn't determine order from query, use logical order
+        if not final_pages:
+            # Use the primary pages order for the pages we have
+            for page in self.primary_pages:
+                if page in requested_pages:
+                    final_pages.append(page)
+            
+            # Add any remaining pages
+            for page in requested_pages:
+                if page not in final_pages:
+                    final_pages.append(page)
+        
+        print(f"Final ordered pages: {final_pages}")
+        return final_pages
 
     def fetch_pages(self, page_types: List[str]) -> Dict[str, Any]:
-        """Fetch pages of the requested types from Supabase"""
+        """Fetch pages of the requested types from Supabase - only return exactly what was requested"""
         selected_pages = {}
-        fallback_pages = {}
         missing_pages = []
+        
+        print(f"Fetching exactly {len(page_types)} pages: {page_types}")
         
         # First attempt - exact category match
         for page_type in page_types:
+            print(f"Looking for page type: '{page_type}'")
+            
             # Query the database for pages of this type
             try:
                 result = self.supabase.table('pages') \
@@ -141,17 +209,18 @@ class MultiPageSiteGenerator:
                     # Randomly select one page of this type
                     selected_page = random.choice(result.data)
                     selected_pages[page_type] = selected_page
-                    print(f"Found page for type: {page_type}")
+                    print(f"✓ Found page for type: '{page_type}' - Title: '{selected_page.get('title', 'No title')}'")
                 else:
                     missing_pages.append(page_type)
-                    print(f"No pages found for type: {page_type}")
+                    print(f"✗ No pages found for type: '{page_type}' in database")
             except Exception as e:
                 missing_pages.append(page_type)
-                print(f"Error fetching {page_type} pages: {e}")
+                print(f"✗ Error fetching '{page_type}' pages: {e}")
         
         # Second attempt - for missing pages, try search in content or other fields
-        if missing_pages:
-            print(f"Searching for alternative pages for: {missing_pages}")
+        # But be more conservative and only do this if we have very few pages
+        if missing_pages and len(selected_pages) < len(page_types) * 0.5:  # Only if we have less than 50% of requested pages
+            print(f"⚠️  Searching for alternative pages for: {missing_pages}")
             
             # Get all available pages
             try:
@@ -189,30 +258,24 @@ class MultiPageSiteGenerator:
                         # If we found any matches, randomly select one
                         if matches:
                             fallback_page = random.choice(matches)
-                            fallback_pages[page_type] = fallback_page
-                            print(f"Found alternative page for {page_type} with content match")
+                            selected_pages[page_type] = fallback_page
+                            print(f"✓ Found alternative page for '{page_type}' with content match - Title: '{fallback_page.get('title', 'No title')}'")
                         else:
-                            # No match found for this page type, try to find a generic one
-                            generic_types = ['content', 'page', 'block', 'element', 'widget']
-                            generic_matches = []
-                            
-                            for page in all_pages:
-                                for g_type in generic_types:
-                                    if g_type in json.dumps(page).lower():
-                                        generic_matches.append(page)
-                                        break
-                            
-                            if generic_matches:
-                                fallback_page = random.choice(generic_matches)
-                                fallback_pages[page_type] = fallback_page
-                                print(f"Used generic page for {page_type}")
+                            print(f"✗ No alternative found for '{page_type}'")
             except Exception as e:
-                print(f"Error finding alternative pages: {e}")
+                print(f"✗ Error finding alternative pages: {e}")
         
-        # Merge selected and fallback pages
-        selected_pages.update(fallback_pages)
+        # Final summary
+        found_pages = list(selected_pages.keys())
+        still_missing = [page for page in page_types if page not in selected_pages]
         
-        print(f"Successfully selected {len(selected_pages)} pages out of {len(page_types)} requested")
+        print(f"\n📊 Page Selection Summary:")
+        print(f"   Requested: {page_types}")
+        print(f"   Found: {found_pages}")
+        if still_missing:
+            print(f"   Missing: {still_missing}")
+            print(f"   ⚠️  Warning: Some requested pages could not be found")
+        
         return selected_pages
 
     def create_base_template(self) -> ET.Element:
@@ -353,8 +416,8 @@ class MultiPageSiteGenerator:
                     # Apply our color palette
                     modified_data = self._apply_color_palette(parsed_data, style_description, palette, custom_mapping)
                     
-                    # Convert back to string
-                    elementor_data = json.dumps(modified_data)
+                    # Convert back to string with proper formatting
+                    elementor_data = json.dumps(modified_data, ensure_ascii=False, separators=(',', ':'))
                     print(f"Applied color palette to page {page_type}")
                 except Exception as e:
                     print(f"Error applying color palette to page {page_type}: {e}")
@@ -363,6 +426,9 @@ class MultiPageSiteGenerator:
             meta_key = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_key')
             meta_key.text = '_elementor_data'
             meta_value = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_value')
+            
+            # Fix JSON serialization to prevent double escaping
+            # Use plain text instead of CDATA to avoid recursion issues
             meta_value.text = elementor_data
             
             # Add Elementor edit mode meta
@@ -522,13 +588,24 @@ class MultiPageSiteGenerator:
     def create_multi_page_site(self, user_query: str, output_path: str, style_description: str = None) -> str:
         """Create a multi-page WordPress site from the user query"""
         print(f"[DEBUG] MultiPageSiteGenerator.create_multi_page_site called with style_description: '{style_description}'")
+        print(f"[DEBUG] User query: '{user_query}'")
+        
         # Parse the user query to get requested pages
         page_types = self.parse_user_query(user_query)
         print(f"Identified page types: {page_types}")
         
         # Fetch pages from Supabase
         selected_pages = self.fetch_pages(page_types)
-        print(f"Selected {len(selected_pages)} pages")
+        print(f"Selected {len(selected_pages)} pages out of {len(page_types)} requested")
+        
+        # Check if we have enough pages to proceed
+        if len(selected_pages) == 0:
+            raise ValueError("No pages could be found for the requested types. Please try different page names or check the database.")
+        
+        if len(selected_pages) < len(page_types):
+            print(f"⚠️  Warning: Only found {len(selected_pages)} out of {len(page_types)} requested pages")
+            print(f"   Using: {list(selected_pages.keys())}")
+            print(f"   Missing: {[p for p in page_types if p not in selected_pages]}")
         
         # Create a base template
         rss = self.create_base_template()
@@ -545,24 +622,31 @@ class MultiPageSiteGenerator:
         self.generated_mapping = custom_mapping
         self.generated_style_description = style_description
 
+        # Only add pages that were actually found
         page_id = 1
+        actual_pages_used = []
+        
         for page_type in page_types:
             if page_type in selected_pages:
                 print(f"[DEBUG] Adding page '{page_type}' with style_description: '{style_description}'")
                 self.add_page_to_template(channel, page_type, selected_pages[page_type], page_id, style_description, palette, custom_mapping)
+                actual_pages_used.append(page_type)
                 page_id += 1
+            else:
+                print(f"[DEBUG] Skipping page '{page_type}' - not found in database")
         
-        # Create menu items for navigation
+        # Create menu items for navigation - only for pages that were actually used
         menu_id = 100  # Start menu items at ID 100
-        for idx, page_type in enumerate(page_types):
-            if page_type in selected_pages:
-                self.create_menu_item(
-                    channel,
-                    selected_pages[page_type].get('title', page_type.capitalize()),
-                    f'https://example.com/{page_type}/',
-                    menu_id + idx,
-                    idx
-                )
+        for idx, page_type in enumerate(actual_pages_used):
+            self.create_menu_item(
+                channel,
+                selected_pages[page_type].get('title', page_type.capitalize()),
+                f'https://example.com/{page_type}/',
+                menu_id + idx,
+                idx
+            )
+        
+        print(f"✅ Successfully created multi-page site with {len(actual_pages_used)} pages: {actual_pages_used}")
         
         # Create the output directory if it doesn't exist
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -592,15 +676,25 @@ def main():
     # Example usage
     generator = MultiPageSiteGenerator()
     
-    # Generate multi-page site from query
-    user_query = "I need a website with 5 pages: home, about us, services, portfolio and contact form"
+    # Test the exact query the user mentioned
+    user_query = "I need home, about, contact us, services"
     output_path = "output/multi_page_site.xml"
     
+    print("=== Testing Improved Query Parsing ===")
+    print(f"Query: '{user_query}'")
+    
     try:
+        # Test just the parsing first
+        page_types = generator.parse_user_query(user_query)
+        print(f"Parsed pages: {page_types}")
+        
+        # Now test the full generation
         generator.create_multi_page_site(user_query, output_path)
         print(f"Multi-page site generation successful!")
     except Exception as e:
         print(f"Multi-page site generation failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
