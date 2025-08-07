@@ -2,19 +2,13 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, F
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, List, Any, Union
-# Google Places OnePage request model
-class GoogleOnePageRequest(BaseModel):
-    google_data: dict = Field(..., description="Full Google Places API result JSON")
-    style_description: Optional[str] = "modern professional style with clean design"
-    replace_images: Optional[bool] = False
-
+import xml.etree.ElementTree as ET
 import uuid
 import shutil
 import os
 import sys
 from datetime import datetime
 import json
-import xml.etree.ElementTree as ET
 from supabase import create_client
 import re
 import time
@@ -45,7 +39,7 @@ app.add_middleware(
 # Handle imports differently based on how script is run
 try:
     # When imported as a module
-    from offline.agentoff import FixedElementorExtractor, ThemeTransformByIdRequest
+    from offline.agentoff import FixedElementorExtractor
     from offline.transformation import ContentTransformationAgent
     from offline.onepage_agent import OnePageSiteGenerator
     from offline.multipage_agent import MultiPageSiteGenerator
@@ -53,7 +47,7 @@ try:
     from offline.color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, generate_color_palette_with_gpt4o
 except ImportError:
     # When run directly
-    from agentoff import FixedElementorExtractor, ThemeTransformByIdRequest
+    from agentoff import FixedElementorExtractor
     from transformation import ContentTransformationAgent
     from onepage_agent import OnePageSiteGenerator
     from multipage_agent import MultiPageSiteGenerator
@@ -75,28 +69,68 @@ class JobStatus(BaseModel):
     output_url: Optional[str] = None
     error: Optional[str] = None
 
+# Google Places OnePage request model - simplified to one parameter
+class GoogleOnePageRequest(BaseModel):
+    google_data: dict = Field(..., description="Full Google Places API result JSON with optional style_description and replace_images")
+
+# Google Business Profile object model
+class GoogleBusinessProfile(BaseModel):
+    name: Optional[str] = None
+    formatted_address: Optional[str] = None
+    formatted_phone_number: Optional[str] = None
+    website: Optional[str] = None
+    business_status: Optional[str] = None
+    rating: Optional[float] = None
+    user_ratings_total: Optional[int] = None
+    opening_hours: Optional[dict] = None
+    photos: Optional[List[dict]] = None
+    reviews: Optional[List[dict]] = None
+    geometry: Optional[dict] = None
+    types: Optional[List[str]] = None
+    vicinity: Optional[str] = None
+    international_phone_number: Optional[str] = None
+    place_id: Optional[str] = None
+    url: Optional[str] = None
+    utc_offset: Optional[int] = None
+    icon: Optional[str] = None
+    icon_background_color: Optional[str] = None
+    icon_mask_base_uri: Optional[str] = None
+    plus_code: Optional[dict] = None
+    adr_address: Optional[str] = None
+    address_components: Optional[List[dict]] = None
+    current_opening_hours: Optional[dict] = None
+    html_attributions: Optional[List[str]] = None
+    reference: Optional[str] = None
+    status: Optional[str] = None
+
+# Updated request models with google_data instead of gbp_object
 class StyleDescription(BaseModel):
     description: str
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class SiteGenerationRequest(BaseModel):
     query: str
     style_description: Optional[str] = "modern professional style with clean design"
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class ThemeIdTransformation(BaseModel):
     theme_id: str
     style_description: str
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class RecreateThemeRequest(BaseModel):
     theme_id: str
     style_description: Optional[str] = None
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class EvaluateSectionsRequest(BaseModel):
     theme_id: str
     detailed_analysis: Optional[bool] = True
+    google_data: Optional[dict] = None
 
 # New request model for color mapping API
 class ColorMappingRequest(BaseModel):
@@ -113,28 +147,28 @@ class CDATA:
         self.text = text
         
     def __str__(self):
-        return "<![CDATA[{}]]>".format(self.text)
+        return self.text  # Return plain text instead of CDATA
 
-# Add helper function for CDATA in ElementTree
-ET._original_serialize_xml = ET._serialize_xml
+# Remove the problematic XML serialization override
+# ET._original_serialize_xml = ET._serialize_xml
 
-def _serialize_xml(write, elem, qnames, namespaces, **kwargs):
-    if elem.text.__class__.__name__ == "CDATA":
-        write("<{}".format(qnames[elem.tag]))
-        items = list(elem.items())
-        if items:
-            items.sort()
-            for name, value in items:
-                write(' {}="{}"'.format(qnames[name], xml_escape(value)))
-        write(">")
-        write(str(elem.text))
-        write("</{}>".format(qnames[elem.tag]))
-        if elem.tail:
-            write(xml_escape(elem.tail))
-    else:
-        return ET._original_serialize_xml(write, elem, qnames, namespaces, **kwargs)
+# def _serialize_xml(write, elem, qnames, namespaces, short_empty_elements=True, **kwargs):
+#     if elem.text is not None and elem.text.__class__.__name__ == "CDATA":
+#         write("<{}".format(qnames[elem.tag]))
+#         items = list(elem.items())
+#         if items:
+#             items.sort()
+#             for name, value in items:
+#                 write(' {}="{}"'.format(qnames[name], xml_escape(value)))
+#         write(">")
+#         write(str(elem.text))
+#         write("</{}>".format(qnames[elem.tag]))
+#         if elem.tail:
+#             write(xml_escape(elem.tail))
+#     else:
+#         return ET._original_serialize_xml(write, elem, qnames, namespaces, short_empty_elements, **kwargs)
         
-ET._serialize_xml = _serialize_xml
+# ET._serialize_xml = _serialize_xml
 
 def xml_escape(text):
     if not text:
@@ -309,7 +343,7 @@ class ThemeTransformerOrchestrator:
         return base.lower()
 
     
-    def process_theme(self, job_id: str, input_path: str, style_description: str, skip_theme_creation: bool = False, replace_images: bool = False):
+    def process_theme(self, job_id: str, input_path: str, style_description: str, skip_theme_creation: bool = False, replace_images: bool = False, gbp_object: dict = None):
         """Process theme transformation"""
         work_dir = os.path.join(self.base_dir, "processing", job_id)
         theme_id = None
@@ -322,6 +356,17 @@ class ThemeTransformerOrchestrator:
             
             # Create job working directory
             os.makedirs(work_dir, exist_ok=True)
+            
+            # Process GBP object if provided
+            business_info = {}
+            preservation_prompt = ""
+            if gbp_object:
+                business_info = process_gbp_object(gbp_object)
+                preservation_prompt = create_gbp_preservation_prompt(business_info)
+                print(f"Processing with GBP object for business: {business_info.get('business_name', 'Unknown')}")
+                # Store business info in job for later use
+                self.jobs[job_id]["business_info"] = business_info
+                self.jobs[job_id]["gbp_object"] = gbp_object
             
             # Validate input XML
             if not self.validate_xml(input_path):
@@ -339,11 +384,18 @@ class ThemeTransformerOrchestrator:
             except Exception as e:
                 raise ValueError(f"Error during extraction: {str(e)}")
             
-            # Step 2: Transform content
+            # Step 2: Transform content with GBP preservation if provided
             print(f"Transforming content with style: {style_description}...")
+            
+            # Combine style description with preservation prompt if GBP object is provided
+            final_style_description = style_description
+            if preservation_prompt:
+                final_style_description = f"{style_description}\n\n{preservation_prompt}"
+                print("Applied GBP preservation instructions to transformation")
+            
             transformation_result = self.transformation_agent.transform_theme_content(
                 theme_id or job_id,
-                style_description,
+                final_style_description,
                 filtered_pages=pages_data if skip_theme_creation else None,
                 filtered_sections=sections_data if skip_theme_creation else None
             )
@@ -359,6 +411,11 @@ class ThemeTransformerOrchestrator:
                     # Handle nested color_palette structure
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
             
+            # Add business info to transformation result if GBP object was provided
+            if business_info:
+                transformation_result['business_info'] = business_info
+                transformation_result['gbp_preserved'] = True
+            
             # Generate transformation output path
             transformed_path = os.path.join(work_dir, f"transformed_{job_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
@@ -371,6 +428,9 @@ class ThemeTransformerOrchestrator:
                     'input': {
                         'theme_id': theme_id,
                         'style_description': style_description,
+                        'final_style_description': final_style_description,
+                        'gbp_object_provided': bool(gbp_object),
+                        'business_info': business_info,
                         'filtered_pages_count': len(pages_data) if pages_data else 0,
                         'filtered_sections_count': len(sections_data) if sections_data else 0
                     },
@@ -434,7 +494,8 @@ class ThemeTransformerOrchestrator:
                         'theme_id': theme_id,
                         'texts': transformation_result.get('text_transformations', []),
                         'colors': transformation_result.get('color_palette', {}).get('new_colors', []),
-                        'created_at': datetime.utcnow().isoformat()
+                        'created_at': datetime.utcnow().isoformat(),
+                        'gbp_preserved': bool(business_info)
                     }
                     
                     # Write debug info
@@ -475,13 +536,24 @@ class ThemeTransformerOrchestrator:
                 except Exception as e:
                     print(f"Failed to cleanup work directory: {e}")
 
-    def generate_one_page_site(self, job_id: str, query: str, style_description: str = None, replace_images: bool = False):
+    def generate_one_page_site(self, job_id: str, query: str, style_description: str = None, replace_images: bool = False, gbp_object: dict = None):
         """Generate a one-page site from user query"""
         work_dir = os.path.join(self.base_dir, "processing", job_id)
         try:
             self.jobs[job_id]["status"] = "processing"
             os.makedirs(work_dir, exist_ok=True)
             print(f"Generating one-page site from query: {query}...")
+            
+            # Process GBP object if provided
+            business_info = {}
+            preservation_prompt = ""
+            if gbp_object:
+                business_info = process_gbp_object(gbp_object)
+                preservation_prompt = create_gbp_preservation_prompt(business_info)
+                print(f"Processing with GBP object for business: {business_info.get('business_name', 'Unknown')}")
+                self.jobs[job_id]["business_info"] = business_info
+                self.jobs[job_id]["gbp_object"] = gbp_object
+            
             temp_output_path = os.path.join(work_dir, "onepage_temp.xml")
             combined_query = query
             if style_description and style_description.strip():
@@ -500,7 +572,14 @@ class ThemeTransformerOrchestrator:
             except Exception as e:
                 raise ValueError(f"Error during extraction: {str(e)}")
             print(f"Applying style: {combined_query}...")
-            transformation_result = self.transformation_agent.transform_theme_content(theme_id, combined_query)
+            
+            # Combine style description with preservation prompt if GBP object is provided
+            final_style_description = combined_query
+            if preservation_prompt:
+                final_style_description = f"{combined_query}\n\n{preservation_prompt}"
+                print("Applied GBP preservation instructions to transformation")
+            
+            transformation_result = self.transformation_agent.transform_theme_content(theme_id, final_style_description)
             if 'text_transformations' not in transformation_result:
                 transformation_result['text_transformations'] = []
             if 'color_palette' not in transformation_result:
@@ -508,6 +587,12 @@ class ThemeTransformerOrchestrator:
             elif isinstance(transformation_result['color_palette'], dict):
                 if 'color_palette' in transformation_result['color_palette']:
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
+            
+            # Add business info to transformation result if GBP object was provided
+            if business_info:
+                transformation_result['business_info'] = business_info
+                transformation_result['gbp_preserved'] = True
+            
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
@@ -518,7 +603,10 @@ class ThemeTransformerOrchestrator:
                         'theme_id': theme_id,
                         'style_description': style_description,
                         'query': query,
-                        'combined_query': combined_query
+                        'combined_query': combined_query,
+                        'final_style_description': final_style_description,
+                        'gbp_object_provided': bool(gbp_object),
+                        'business_info': business_info
                     },
                     'transformation_result': transformation_result,
                     'text_count': len(transformation_result.get('text_transformations', [])),
@@ -561,13 +649,24 @@ class ThemeTransformerOrchestrator:
                 except Exception as e:
                     print(f"Failed to cleanup work directory: {e}")
 
-    def generate_multi_page_site(self, job_id: str, query: str, style_description: str = None, replace_images: bool = False):
+    def generate_multi_page_site(self, job_id: str, query: str, style_description: str = None, replace_images: bool = False, gbp_object: dict = None):
         """Generate a multi-page site from user query"""
         work_dir = os.path.join(self.base_dir, "processing", job_id)
         try:
             self.jobs[job_id]["status"] = "processing"
             os.makedirs(work_dir, exist_ok=True)
             print(f"Generating multi-page site from query: {query}...")
+            
+            # Process GBP object if provided
+            business_info = {}
+            preservation_prompt = ""
+            if gbp_object:
+                business_info = process_gbp_object(gbp_object)
+                preservation_prompt = create_gbp_preservation_prompt(business_info)
+                print(f"Processing with GBP object for business: {business_info.get('business_name', 'Unknown')}")
+                self.jobs[job_id]["business_info"] = business_info
+                self.jobs[job_id]["gbp_object"] = gbp_object
+            
             temp_output_path = os.path.join(work_dir, "multipage_temp.xml")
             combined_query = query
             if style_description and style_description.strip():
@@ -588,7 +687,14 @@ class ThemeTransformerOrchestrator:
             except Exception as e:
                 raise ValueError(f"Error during extraction: {str(e)}")
             print(f"Applying style: {combined_query}...")
-            transformation_result = self.transformation_agent.transform_theme_content(theme_id, combined_query)
+            
+            # Combine style description with preservation prompt if GBP object is provided
+            final_style_description = combined_query
+            if preservation_prompt:
+                final_style_description = f"{combined_query}\n\n{preservation_prompt}"
+                print("Applied GBP preservation instructions to transformation")
+            
+            transformation_result = self.transformation_agent.transform_theme_content(theme_id, final_style_description)
             if 'text_transformations' not in transformation_result:
                 transformation_result['text_transformations'] = []
             if 'color_palette' not in transformation_result:
@@ -596,6 +702,12 @@ class ThemeTransformerOrchestrator:
             elif isinstance(transformation_result['color_palette'], dict):
                 if 'color_palette' in transformation_result['color_palette']:
                     transformation_result['color_palette'] = transformation_result['color_palette']['color_palette']
+            
+            # Add business info to transformation result if GBP object was provided
+            if business_info:
+                transformation_result['business_info'] = business_info
+                transformation_result['gbp_preserved'] = True
+            
             transformed_path = os.path.join(work_dir, f"transformed_{theme_id}.json")
             with open(transformed_path, 'w', encoding='utf-8') as f:
                 json.dump(transformation_result, f, ensure_ascii=False, indent=2)
@@ -606,7 +718,10 @@ class ThemeTransformerOrchestrator:
                         'theme_id': theme_id,
                         'style_description': style_description,
                         'query': query,
-                        'combined_query': combined_query
+                        'combined_query': combined_query,
+                        'final_style_description': final_style_description,
+                        'gbp_object_provided': bool(gbp_object),
+                        'business_info': business_info
                     },
                     'transformation_result': transformation_result,
                     'text_count': len(transformation_result.get('text_transformations', [])),
@@ -653,7 +768,7 @@ class ThemeTransformerOrchestrator:
                 except Exception as e:
                     print(f"Failed to cleanup work directory: {e}")
 
-    def process_theme_by_id(self, job_id: str, theme_id: str, style_description: str, replace_images: bool = False):
+    def process_theme_by_id(self, job_id: str, theme_id: str, style_description: str, replace_images: bool = False, gbp_object: dict = None):
         """Process a theme transformation by its ID"""
         work_dir = os.path.join(self.base_dir, "processing", job_id)
         output_path = os.path.join(self.base_dir, "output", f"{job_id}.xml")
@@ -664,6 +779,17 @@ class ThemeTransformerOrchestrator:
                 raise ValueError(f"Provided theme_id '{theme_id}' is not a valid UUID.")
             self.jobs[job_id]["status"] = "processing"
             os.makedirs(work_dir, exist_ok=True)
+            
+            # Process GBP object if provided
+            business_info = {}
+            preservation_prompt = ""
+            if gbp_object:
+                business_info = process_gbp_object(gbp_object)
+                preservation_prompt = create_gbp_preservation_prompt(business_info)
+                print(f"Processing with GBP object for business: {business_info.get('business_name', 'Unknown')}")
+                self.jobs[job_id]["business_info"] = business_info
+                self.jobs[job_id]["gbp_object"] = gbp_object
+            
             supabase_url = os.getenv('SUPABASE_URL')
             supabase_key = os.getenv('SUPABASE_KEY')
             if not supabase_url or not supabase_key:
@@ -708,12 +834,25 @@ class ThemeTransformerOrchestrator:
                 # Extract pages and sections as before
                 extracted_theme_id, pages_data, sections_data = self.extraction_agent.process_theme(input_path)
                 print(f"Transforming content with style: {style_description or 'default style'}...")
+                
+                # Combine style description with preservation prompt if GBP object is provided
+                final_style_description = style_description or ""
+                if preservation_prompt:
+                    final_style_description = f"{final_style_description}\n\n{preservation_prompt}"
+                    print("Applied GBP preservation instructions to transformation")
+                
                 # Pass extracted_posts to transformation agent
                 transformation_result = self.transformation_agent.transform_theme_content(
                     extracted_theme_id,
-                    style_description or "",
+                    final_style_description,
                     extracted_posts=extracted_posts
                 )
+                
+                # Add business info to transformation result if GBP object was provided
+                if business_info:
+                    transformation_result['business_info'] = business_info
+                    transformation_result['gbp_preserved'] = True
+                
                 transformation_path = os.path.join(work_dir, f"transformation_{valid_theme_id}.json")
                 with open(transformation_path, 'w', encoding='utf-8') as f:
                     json.dump(transformation_result, f, indent=2)
@@ -745,7 +884,8 @@ class ThemeTransformerOrchestrator:
                     'theme_id': valid_theme_id,
                     'texts': text_transformations,
                     'colors': color_palette.get('new_colors', []),
-                    'created_at': datetime.utcnow().isoformat()
+                    'created_at': datetime.utcnow().isoformat(),
+                    'gbp_preserved': bool(business_info)
                 }
                 debug_dir = os.path.join(os.path.dirname(output_path), "debug")
                 os.makedirs(debug_dir, exist_ok=True)
@@ -781,230 +921,217 @@ class ThemeTransformerOrchestrator:
 class ThemeTransformRequest(BaseModel):
     style_description: str
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class ThemeTransformByIdRequest(BaseModel):
     theme_id: str
     style_description: Optional[str] = None
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class ThemeGenerateRequest(BaseModel):
     style_description: str
     page_count: Optional[int] = 1
+    google_data: Optional[dict] = None
 
 class ThemeStoreRequest(BaseModel):
     theme_name: str
     style_description: Optional[str] = None
+    google_data: Optional[dict] = None
 
 class SectionEvaluationRequest(BaseModel):
     theme_id: str
     detailed_analysis: Optional[bool] = True
+    google_data: Optional[dict] = None
 
 # Define request models for site generation
 class OnePageSiteRequest(BaseModel):
     query: str = Field(..., description="The description of sections to include in the site, e.g., 'hero, about, services, contact'")
     style_description: Optional[str] = "modern professional style with clean design"
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
 class MultiPageSiteRequest(BaseModel):
     query: str = Field(..., description="The description of pages to include in the site, e.g., 'home, about, services, contact'")
     style_description: Optional[str] = "modern professional style with clean design"
     replace_images: Optional[bool] = False
+    google_data: Optional[dict] = None
 
-# Initialize orchestrator
 # Initialize orchestrator
 orchestrator = ThemeTransformerOrchestrator()
 
 # --- Google Places OnePage Site Generation ---
-def build_google_onepage_structure(google_data: dict) -> dict:
+# Note: Now using existing working generators instead of custom implementation
+
+def process_gbp_object(gbp_data: dict) -> dict:
     """
-    Map Google Places data to internal one-page site schema for Elementor/WXR XML generation.
-    Returns a dict with all needed content for the generator.
+    Process Google Business Profile object and extract business information
+    that should be preserved during transformation.
     """
-    result = google_data.get("result", {})
-    # Header
-    business_name = result.get("name", "Business")
-    main_image = None
-    if result.get("photos"):
-        main_image = result["photos"][0].get("photo_reference")
-    # Fallback to Unsplash keyword if no image
-    unsplash_keyword = result.get("types", ["business"])[0]
-    # Tagline/about (AI-generated, placeholder for now)
-    tagline = f"Welcome to {business_name}!"
-    about = result.get("business_status", "")
-    if result.get("reviews"):
-        about = result["reviews"][0].get("text", about)
-    # Address/Contact
-    address = result.get("formatted_address", "")
-    phone = result.get("formatted_phone_number", "")
-    website = result.get("website", "")
-    # Gallery
-    gallery = []
+    if not gbp_data or not isinstance(gbp_data, dict):
+        return {}
+    
+    # Handle both direct result format and full Google Places API response
+    if "result" in gbp_data:
+        result = gbp_data["result"]
+    else:
+        result = gbp_data
+    
+    # Process photos to get actual URLs if photo_reference is provided
+    processed_photos = []
     if result.get("photos"):
         for photo in result["photos"]:
-            gallery.append(photo.get("photo_reference"))
-    # Reviews
-    reviews = result.get("reviews", [])
-    # Map
-    lat = result.get("geometry", {}).get("location", {}).get("lat")
-    lng = result.get("geometry", {}).get("location", {}).get("lng")
-    # Opening hours (for footer)
-    opening_hours = result.get("opening_hours", {}).get("weekday_text", [])
-    # Footer info
-    footer = {
-        "address": address,
-        "phone": phone,
-        "website": website,
-        "opening_hours": opening_hours
+            if isinstance(photo, dict):
+                photo_info = {
+                    "photo_reference": photo.get("photo_reference", ""),
+                    "height": photo.get("height", 0),
+                    "width": photo.get("width", 0),
+                    "html_attributions": photo.get("html_attributions", [])
+                }
+                # You can add logic here to construct actual photo URLs if needed
+                # For now, we'll store the photo_reference which can be used to fetch the actual image
+                processed_photos.append(photo_info)
+    
+    # Process reviews to extract meaningful information
+    processed_reviews = []
+    if result.get("reviews"):
+        for review in result["reviews"]:
+            if isinstance(review, dict):
+                review_info = {
+                    "author_name": review.get("author_name", ""),
+                    "author_url": review.get("author_url", ""),
+                    "profile_photo_url": review.get("profile_photo_url", ""),
+                    "rating": review.get("rating", 0),
+                    "text": review.get("text", ""),
+                    "time": review.get("time", 0),
+                    "relative_time_description": review.get("relative_time_description", ""),
+                    "language": review.get("language", "")
+                }
+                processed_reviews.append(review_info)
+    
+    # Process opening hours to get both formats
+    processed_opening_hours = {}
+    if result.get("opening_hours"):
+        processed_opening_hours = {
+            "open_now": result["opening_hours"].get("open_now", False),
+            "weekday_text": result["opening_hours"].get("weekday_text", []),
+            "periods": result["opening_hours"].get("periods", [])
+        }
+    
+    # Also check current_opening_hours if available
+    if result.get("current_opening_hours"):
+        processed_opening_hours.update({
+            "current_open_now": result["current_opening_hours"].get("open_now", False),
+            "current_weekday_text": result["current_opening_hours"].get("weekday_text", []),
+            "current_periods": result["current_opening_hours"].get("periods", [])
+        })
+    
+    # Extract business information that should be preserved
+    business_info = {
+        "business_name": result.get("name", ""),
+        "address": result.get("formatted_address", ""),
+        "phone": result.get("formatted_phone_number", ""),
+        "international_phone": result.get("international_phone_number", ""),
+        "website": result.get("website", ""),
+        "business_status": result.get("business_status", ""),
+        "rating": result.get("rating", 0),
+        "total_reviews": result.get("user_ratings_total", 0),
+        "opening_hours": processed_opening_hours,
+        "photos": processed_photos,
+        "reviews": processed_reviews,
+        "geometry": result.get("geometry", {}),
+        "types": result.get("types", []),
+        "vicinity": result.get("vicinity", ""),
+        "place_id": result.get("place_id", ""),
+        "url": result.get("url", ""),
+        "utc_offset": result.get("utc_offset", 0),
+        "icon": result.get("icon", ""),
+        "icon_background_color": result.get("icon_background_color", ""),
+        "plus_code": result.get("plus_code", {}),
+        "adr_address": result.get("adr_address", ""),
+        "address_components": result.get("address_components", []),
+        "html_attributions": gbp_data.get("html_attributions", []),
+        "reference": result.get("reference", ""),
+        "status": gbp_data.get("status", "")
     }
-    return {
-        "business_name": business_name,
-        "main_image": main_image,
-        "unsplash_keyword": unsplash_keyword,
-        "tagline": tagline,
-        "about": about,
-        "address": address,
-        "phone": phone,
-        "website": website,
-        "gallery": gallery,
-        "reviews": reviews,
-        "lat": lat,
-        "lng": lng,
-        "footer": footer
-    }
+    
+    return business_info
 
-def generate_google_onepage_xml(site_data: dict, style_description: str, replace_images: bool) -> str:
-    # --- Real implementation using Elementor logic ---
-    from offline.onepage_agent import OnePageSiteGenerator
-    from offline.image_agent import get_image_for_element
-    from offline.transformation import ContentTransformationAgent
-    import xml.etree.ElementTree as ET
-    import json
-    from datetime import datetime
-
-    generator = OnePageSiteGenerator()
-    transformer = ContentTransformationAgent()
-
-    # 1. Hero/Header Section
-    hero_section = generator.fetch_sections(['main']).get('main')
-    if hero_section:
-        hero_img_url = None
-        if site_data['main_image']:
-            hero_img_url = site_data['main_image']
-        else:
-            hero_img_url = get_image_for_element(style_description, 'main', 'image_widget')
-        if hero_img_url:
-            hero_section['image'] = hero_img_url
-        hero_section['title'] = site_data['business_name']
-        hero_section['subtitle'] = transformer.transform_post_content_gpt(site_data['tagline'], style_description)
-
-    # 2. About Section
-    about_section = generator.fetch_sections(['about']).get('about')
-    if about_section:
-        about_section['title'] = 'About Us'
-        about_section['content'] = transformer.transform_post_content_gpt(site_data['about'], style_description)
-        about_section['address'] = site_data['address']
-        about_section['phone'] = site_data['phone']
-        about_section['website'] = site_data['website']
-
-    # 3. Gallery Section
-    gallery_section = generator.fetch_sections(['portfolio', 'gallery']).get('gallery')
-    if gallery_section:
-        gallery_images = []
-        for img_ref in site_data['gallery']:
-            gallery_images.append(img_ref)
-        if not gallery_images:
-            unsplash_img = get_image_for_element(style_description, 'gallery', 'gallery_item')
-            if unsplash_img:
-                gallery_images.append(unsplash_img)
-        gallery_section['images'] = gallery_images
-
-    # 4. Reviews Section
-    reviews_section = generator.fetch_sections(['testimonials', 'reviews']).get('testimonials')
-    if reviews_section:
-        reviews = []
-        for r in site_data['reviews']:
-            reviews.append({
-                'author': r.get('author_name'),
-                'text': r.get('text'),
-                'rating': r.get('rating'),
-                'profile_photo_url': r.get('profile_photo_url')
-            })
-        reviews_section['reviews'] = reviews
-
-    # 5. Map Section
-    map_section = generator.fetch_sections(['map']).get('map')
-    if map_section:
-        map_section['lat'] = site_data['lat']
-        map_section['lng'] = site_data['lng']
-
-    # 6. Footer Section
-    footer_section = generator.fetch_sections(['footer']).get('footer')
-    if footer_section:
-        footer_section['address'] = site_data['footer']['address']
-        footer_section['phone'] = site_data['footer']['phone']
-        footer_section['website'] = site_data['footer']['website']
-        footer_section['opening_hours'] = site_data['footer']['opening_hours']
-
-    # Compose Elementor data for the page
-    elementor_data = []
-    for sec in [hero_section, about_section, gallery_section, reviews_section, map_section, footer_section]:
-        if sec:
-            elementor_data.append(sec)
-
-    # Build WXR XML using OnePageSiteGenerator logic
-    rss = generator.create_base_template()
-    channel = rss.find('channel')
-    item = ET.SubElement(channel, 'item')
-    title = ET.SubElement(item, 'title')
-    title.text = site_data['business_name']
-    link = ET.SubElement(item, 'link')
-    link.text = site_data['website'] or 'https://example.com/'
-    pubDate = ET.SubElement(item, 'pubDate')
-    pubDate.text = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0000')
-    creator = ET.SubElement(item, '{http://purl.org/dc/elements/1.1/}creator')
-    creator.text = 'admin'
-    guid = ET.SubElement(item, 'guid')
-    guid.set('isPermaLink', 'false')
-    guid.text = f'https://example.com/?page_id=1'
-    description = ET.SubElement(item, 'description')
-    description.text = ''
-    content = ET.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded')
-    content.text = ''
-    excerpt = ET.SubElement(item, '{http://wordpress.org/export/1.2/excerpt/}encoded')
-    excerpt.text = ''
-    post_id = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_id')
-    post_id.text = '1'
-    post_date = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_date')
-    post_date.text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    post_date_gmt = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_date_gmt')
-    post_date_gmt.text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    comment_status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}comment_status')
-    comment_status.text = 'closed'
-    ping_status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}ping_status')
-    ping_status.text = 'closed'
-    post_name = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_name')
-    post_name.text = 'home'
-    status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}status')
-    status.text = 'publish'
-    post_parent = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_parent')
-    post_parent.text = '0'
-    menu_order = ET.SubElement(item, '{http://wordpress.org/export/1.2/}menu_order')
-    menu_order.text = '0'
-    post_type = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_type')
-    post_type.text = 'page'
-    post_password = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_password')
-    post_password.text = ''
-    is_sticky = ET.SubElement(item, '{http://wordpress.org/export/1.2/}is_sticky')
-    is_sticky.text = '0'
-    # Elementor meta
-    meta_elementor = ET.SubElement(item, '{http://wordpress.org/export/1.2/}postmeta')
-    meta_key = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_key')
-    meta_key.text = '_elementor_data'
-    meta_value = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_value')
-    meta_value.text = json.dumps(elementor_data)
-    # Write XML to string
-    xml_str = ET.tostring(rss, encoding='utf-8', method='xml').decode('utf-8')
-    return xml_str
+def create_gbp_preservation_prompt(business_info: dict) -> str:
+    """
+    Create a prompt that instructs GPT to preserve business information
+    while transforming other content.
+    """
+    if not business_info:
+        return ""
+    
+    preservation_instructions = """
+IMPORTANT: The following business information must be preserved exactly as provided and NOT transformed:
+"""
+    
+    if business_info.get("business_name"):
+        preservation_instructions += f"- Business Name: '{business_info['business_name']}' must remain unchanged\n"
+    
+    if business_info.get("address"):
+        preservation_instructions += f"- Address: '{business_info['address']}' must remain unchanged\n"
+    
+    if business_info.get("phone"):
+        preservation_instructions += f"- Phone: '{business_info['phone']}' must remain unchanged\n"
+    
+    if business_info.get("international_phone"):
+        preservation_instructions += f"- International Phone: '{business_info['international_phone']}' must remain unchanged\n"
+    
+    if business_info.get("website"):
+        preservation_instructions += f"- Website: '{business_info['website']}' must remain unchanged\n"
+    
+    # Handle opening hours (both regular and current)
+    opening_hours = business_info.get("opening_hours", {})
+    if opening_hours:
+        weekday_text = opening_hours.get("weekday_text", [])
+        current_weekday_text = opening_hours.get("current_weekday_text", [])
+        
+        if weekday_text:
+            preservation_instructions += f"- Opening Hours: {weekday_text} must remain unchanged\n"
+        elif current_weekday_text:
+            preservation_instructions += f"- Opening Hours: {current_weekday_text} must remain unchanged\n"
+    
+    # Handle reviews
+    reviews = business_info.get("reviews", [])
+    if reviews:
+        preservation_instructions += f"- Reviews: All review content from {len(reviews)} reviews must remain unchanged, including:\n"
+        for i, review in enumerate(reviews[:3]):  # Show first 3 reviews as examples
+            author = review.get("author_name", "Anonymous")
+            text = review.get("text", "").strip()
+            rating = review.get("rating", 0)
+            if text:  # Only include reviews with text
+                preservation_instructions += f"  * {author} ({rating} stars): '{text[:100]}...' must remain unchanged\n"
+            else:
+                preservation_instructions += f"  * {author} ({rating} stars): Rating only, no text content\n"
+        if len(reviews) > 3:
+            preservation_instructions += f"  * And {len(reviews) - 3} more reviews with their exact content\n"
+    
+    # Handle photos
+    photos = business_info.get("photos", [])
+    if photos:
+        preservation_instructions += f"- Photos: All {len(photos)} photo references must remain unchanged:\n"
+        for i, photo in enumerate(photos[:3]):  # Show first 3 photos as examples
+            photo_ref = photo.get("photo_reference", "")
+            if photo_ref:
+                preservation_instructions += f"  * Photo {i+1}: Reference '{photo_ref[:20]}...' must remain unchanged\n"
+        if len(photos) > 3:
+            preservation_instructions += f"  * And {len(photos) - 3} more photo references\n"
+    
+    # Handle rating information
+    rating = business_info.get("rating", 0)
+    total_reviews = business_info.get("total_reviews", 0)
+    if rating > 0:
+        preservation_instructions += f"- Rating: {rating} stars from {total_reviews} reviews must remain unchanged\n"
+    
+    preservation_instructions += """
+Transform all other content according to the style description, but ensure the above business information is preserved exactly as provided.
+"""
+    
+    return preservation_instructions
 
 @app.post("/generate/google-onepage")
 async def generate_google_onepage(
@@ -1015,28 +1142,47 @@ async def generate_google_onepage(
     try:
         job_id = str(uuid.uuid4())
         created_at = datetime.utcnow().isoformat()
+        
+        # Extract parameters from google_data
+        google_business_data = request.google_data
+        style_description = google_business_data.get("style_description", "modern professional style with clean design")
+        replace_images = google_business_data.get("replace_images", False)
+        
+        # Process GBP object (the actual business data should be in 'result' key or directly in google_data)
+        business_info = process_gbp_object(google_business_data)
+        preservation_prompt = create_gbp_preservation_prompt(business_info)
+        
+        # Create a business query from the Google data
+        business_name = business_info.get("business_name", "Business")
+        business_query = f"Create a website for {business_name} with hero section, about us, services, gallery, reviews, contact, and map"
+        
+        # Combine style description with preservation prompt
+        final_style_description = style_description
+        if preservation_prompt:
+            final_style_description = f"{style_description}\n\n{preservation_prompt}"
+            print("Applied GBP preservation instructions to Google OnePage generation")
+        
         orchestrator.jobs[job_id] = {
             'id': job_id,
             'status': 'queued',
             'created_at': created_at,
             'type': 'google_onepage',
-            'style_description': request.style_description,
-            'replace_images': request.replace_images
+            'style_description': final_style_description,
+            'replace_images': replace_images,
+            'gbp_object': google_business_data,
+            'business_info': business_info
         }
-        # Map Google data to internal structure
-        site_data = build_google_onepage_structure(request.google_data)
-        # Generate XML (replace with your real generator)
-        xml_content = generate_google_onepage_xml(site_data, request.style_description, request.replace_images)
-        # Save XML to output
-        output_path = os.path.join(orchestrator.base_dir, "output", f"{job_id}.xml")
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(xml_content)
-        orchestrator.jobs[job_id].update({
-            "status": "completed",
-            "completed_at": datetime.utcnow().isoformat(),
-            "output_url": f"/download/{job_id}",
-            "output_path": output_path
-        })
+        
+        # Use the existing working orchestrator method instead of custom implementation
+        background_tasks.add_task(
+            orchestrator.generate_one_page_site,
+            job_id,
+            business_query,
+            final_style_description,
+            replace_images,
+            google_business_data  # Pass as gbp_object
+        )
+        
         return TransformationResponse(
             job_id=job_id,
             status='queued',
@@ -1051,13 +1197,22 @@ async def transform_theme(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     style_description: str = Form(...),
-    replace_images: bool = Form(False)
+    replace_images: bool = Form(False),
+    google_data: Optional[str] = Form(None)
 ):
     """Transform a WordPress theme file with the given style description"""
     try:
         # Generate unique job ID
         job_id = str(uuid.uuid4())
         created_at = datetime.utcnow().isoformat()
+        
+        # Parse google_data if provided
+        gbp_data = None
+        if google_data:
+            try:
+                gbp_data = json.loads(google_data)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid google_data JSON format")
         
         # Create job record
         orchestrator.jobs[job_id] = {
@@ -1066,7 +1221,8 @@ async def transform_theme(
             'created_at': created_at,
             'source_file': file.filename,
             'style_description': style_description,
-            'replace_images': replace_images
+            'replace_images': replace_images,
+            'gbp_object': gbp_data
         }
         
         # Save the uploaded file
@@ -1081,7 +1237,8 @@ async def transform_theme(
             input_path,
             style_description,
             False,  # skip_theme_creation
-            replace_images  # Add replace_images parameter
+            replace_images,  # Add replace_images parameter
+            gbp_data  # Pass google_data
         )
         
         return TransformationResponse(
@@ -1113,7 +1270,8 @@ async def generate_onepage_theme(
             'style_description': request.style_description,
             'query': request.query,
             'type': 'onepage',
-            'replace_images': request.replace_images
+            'replace_images': request.replace_images,
+            'gbp_object': request.google_data
         }
         # Start generation in background
         background_tasks.add_task(
@@ -1121,7 +1279,8 @@ async def generate_onepage_theme(
             job_id,
             request.query,
             request.style_description,
-            request.replace_images
+            request.replace_images,
+            request.google_data
         )
         return TransformationResponse(
             job_id=job_id,
@@ -1151,7 +1310,8 @@ async def generate_multipage_theme(
             'style_description': request.style_description,
             'query': request.query,
             'type': 'multipage',
-            'replace_images': request.replace_images
+            'replace_images': request.replace_images,
+            'gbp_object': request.google_data
         }
         
         # Start generation in background
@@ -1160,7 +1320,8 @@ async def generate_multipage_theme(
             job_id,
             request.query,
             request.style_description,
-            request.replace_images  # Pass replace_images
+            request.replace_images,  # Pass replace_images
+            request.google_data
         )
         
         return TransformationResponse(
@@ -1179,13 +1340,19 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     
     job = orchestrator.jobs[job_id]
-    return {
+    response = {
         'job_id': job_id,
         'status': job['status'],
         'created_at': job['created_at'],
         'completed_at': job.get('completed_at'),
-        'error': job.get('error')
+        'error': job.get('error'),
+        'output_url': job.get('output_url'),
+        'job_type': job.get('type', 'unknown'),
+        'gbp_preserved': job.get('gbp_preserved', False),
+        'business_info': job.get('business_info', {})
     }
+    
+    return response
 
 @app.get("/download/{job_id}")
 async def download_transformed_theme(job_id: str):
@@ -1229,7 +1396,8 @@ async def transform_theme_by_id(
             'created_at': created_at,
             'source_theme_id': request.theme_id,
             'style_description': request.style_description,
-            'replace_images': request.replace_images
+            'replace_images': request.replace_images,
+            'gbp_object': request.google_data
         }
         
         # Start transformation in background
@@ -1238,7 +1406,8 @@ async def transform_theme_by_id(
             job_id,
             request.theme_id,
             request.style_description,
-            request.replace_images  # Pass replace_images
+            request.replace_images,  # Pass replace_images
+            request.google_data
         )
         
         return TransformationResponse(
@@ -1313,6 +1482,38 @@ async def store_complete_theme(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error storing theme: {str(e)}")
 
+
+@app.post("/evaluate/sections")
+async def evaluate_theme_sections(request: SectionEvaluationRequest):
+    """Evaluate and categorize all sections in a theme using enhanced Elementor data analysis"""
+    try:
+        # Log the request
+        logging.info(f"Received section evaluation request for theme ID: {request.theme_id}")
+        logging.info(f"Using enhanced Elementor data analysis for more accurate section categorization")
+        
+        # Validate theme ID
+        if not request.theme_id:
+            raise HTTPException(status_code=400, detail="Theme ID is required")
+            
+        # Evaluate sections
+        result = orchestrator.section_evaluator.evaluate_theme_sections(request.theme_id)
+        
+        # Add detailed analysis information to the response
+        result["detailed_analysis_used"] = request.detailed_analysis
+        result["evaluated_at"] = datetime.utcnow().isoformat()
+        
+        return JSONResponse(content=result)
+        
+    except ValueError as e:
+        logging.error(f"Value error in section evaluation: {str(e)}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error evaluating sections: {str(e)}")
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error evaluating sections: {str(e)}")
+        
+
+
 @app.post("/recreate-theme")
 async def recreate_theme(
     request: RecreateThemeRequest,
@@ -1328,7 +1529,8 @@ async def recreate_theme(
             'created_at': created_at,
             'source_theme_id': request.theme_id,
             'style_description': request.style_description,
-            'replace_images': request.replace_images
+            'replace_images': request.replace_images,
+            'gbp_object': request.google_data
         }
         supabase_url = os.getenv('SUPABASE_URL')
         supabase_key = os.getenv('SUPABASE_KEY')
@@ -1357,7 +1559,8 @@ async def recreate_theme(
             filtered_path,
             request.style_description,
             True,  # skip_theme_creation
-            request.replace_images  # Pass replace_images
+            request.replace_images,  # Pass replace_images
+            request.google_data
         )
         return TransformationResponse(
             job_id=job_id,
@@ -1476,6 +1679,66 @@ async def get_page_info(request: PageInfoRequest):
         logging.error(f"Error getting page information: {str(e)}")
         logging.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Error getting page information: {str(e)}")
+
+@app.post("/validate-google-data")
+async def validate_google_data(google_data: dict):
+    """Validate and process a Google Business Profile object"""
+    try:
+        # Process the google_data object
+        business_info = process_gbp_object(google_data)
+        preservation_prompt = create_gbp_preservation_prompt(business_info)
+        
+        return {
+            "valid": True,
+            "business_info": business_info,
+            "preservation_prompt": preservation_prompt,
+            "business_name": business_info.get("business_name", ""),
+            "address": business_info.get("address", ""),
+            "phone": business_info.get("phone", ""),
+            "website": business_info.get("website", ""),
+            "rating": business_info.get("rating", 0),
+            "total_reviews": business_info.get("total_reviews", 0),
+            "opening_hours": business_info.get("opening_hours", {}),
+            "photos_count": len(business_info.get("photos", [])),
+            "reviews_count": len(business_info.get("reviews", [])),
+            "geometry": business_info.get("geometry", {}),
+            "place_id": business_info.get("place_id", ""),
+            "status": business_info.get("status", "")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid google_data: {str(e)}")
+
+@app.post("/google-data-preview")
+async def preview_google_data_transformation(
+    style_description: str,
+    google_data: dict
+):
+    """Preview how google_data would be processed with a given style description"""
+    try:
+        # Process the google_data object
+        business_info = process_gbp_object(google_data)
+        preservation_prompt = create_gbp_preservation_prompt(business_info)
+        
+        # Combine style description with preservation prompt
+        final_style_description = f"{style_description}\n\n{preservation_prompt}"
+        
+        return {
+            "original_style_description": style_description,
+            "final_style_description": final_style_description,
+            "business_info": business_info,
+            "preservation_prompt": preservation_prompt,
+            "preserved_elements": {
+                "business_name": business_info.get("business_name"),
+                "address": business_info.get("address"),
+                "phone": business_info.get("phone"),
+                "website": business_info.get("website"),
+                "opening_hours": business_info.get("opening_hours", {}).get("weekday_text", []),
+                "photos_count": len(business_info.get("photos", [])),
+                "reviews_count": len(business_info.get("reviews", []))
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error processing google_data preview: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
