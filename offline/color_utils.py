@@ -130,34 +130,33 @@ def generate_color_palette_with_gpt4o(style_description: str) -> Tuple[Dict[str,
         - error: A color indicating error
         - white: Pure white (#FFFFFF)
         - black: Pure black (#000000)
-           
-        Note : Make the links color to be color far from the primary color to have a good apprearance     
+        
         Part 2: Now, create a mapping of Elementor color properties to the palette colors above. This determines which palette color is used for each Elementor property. Include these Elementor properties:
-        - background_color: Use primary or another rich color from the palette, NOT white or very light colors
+        - background_color: Use light primary or another rich color from the palette, NOT white 
         - background_overlay_color: Use primary_dark or another rich color from the palette
         - background_hover_color: Use primary_light or another appropriate color
         - background_active_color: Use secondary or another appropriate color
         - background_selected_color: Use secondary_dark or another appropriate color
-        - title_color: Use Black colr or Color depending on the background color to ensure readability , Note in title-color do not use white colors at all 
-        - description_color: Use text_secondary or black depending on the background color to ensure readability
+        - title_color: Use text_primary, white, or black depending on the background color to ensure readability
+        - description_color: Use text_secondary, white, or black depending on the background color to ensure readability
         - color_text: Use text_primary, white, or black depending on the background color to ensure readability
-        - color: Use text_primary or black depending on the background color to ensure readability
+        - color: Use text_primary, white, or black depending on the background color to ensure readability
         - hover_color: Use accent or another appropriate color
         - active_color: Use accent_dark or another appropriate color
         - selected_color: Use accent or secondary depending on the design
-        - button_background_color: Use primary
-        - button_hover_background_color: Use primary_dark
-        - button_text_color: Use white 
-        - button_hover_text_color: Use primary_light
+        - button_background_color: Use primary, accent, or another appropriate color
+        - button_hover_background_color: Use primary_dark, accent_dark, or another appropriate color
+        - button_text_color: Use white or black depending on the button background to ensure readability
+        - button_hover_text_color: Use white or black depending on the button hover background to ensure readability
         - border_color: Use neutral_dark or another appropriate color
         - border_hover_color: Use primary or accent depending on the design
         - primary_color: Use primary
         - secondary_color: Use secondary
-        - icon_color: Use color diffrent to primary color to be diffrent to background color 
+        - icon_color: Use primary, accent, or text_primary depending on the background
         - icon_hover_color: Use primary_dark, accent_dark, or another appropriate color
         - heading_color: Use text_primary, white, or black depending on the background color to ensure readability
         - text_color: Use text_primary, white, or black depending on the background color to ensure readability
-        - link_color: primary 
+        - link_color: Use primary or accent
         - link_hover_color: Use primary_dark or accent_dark
         - field_background_color: Use neutral_light or white depending on the design
         - field_border_color: Use neutral_dark or primary
@@ -389,6 +388,198 @@ def map_colors_to_elementor(palette: Dict[str, Tuple[int, int, int]], custom_map
                 print(f"Added default mapping for {elementor_prop} -> {palette_color}")
     
     return elementor_colors
+
+def create_smart_alternating_color_system(style_description: str) -> Dict[str, Any]:
+    """
+    Create a smart alternating color system for sections:
+    - Odd sections: Very light primary color background
+    - Even sections: No background (transparent/white)
+    - Text colors: High contrast based on background
+    """
+    # Extract primary color from style description
+    primary_color = extract_color_from_description(style_description)
+    
+    # Generate a very light version of the primary color for odd sections
+    h, s, v = colorsys.rgb_to_hsv(*[x/255.0 for x in primary_color])
+    very_light_primary = hsv_to_rgb(h, s * 0.1, 0.98)  # Very light, high value, low saturation
+    
+    # Create the alternating color system
+    alternating_system = {
+        'odd_section_background': rgb_to_hex(very_light_primary),
+        'even_section_background': '#FFFFFF',  # White/transparent
+        'primary_color': rgb_to_hex(primary_color),
+        'text_on_light_bg': '#333333',  # Dark text on light backgrounds
+        'text_on_primary_bg': '#FFFFFF',  # White text on primary backgrounds
+        'accent_color': rgb_to_hex(hsv_to_rgb((h + 0.16) % 1, s * 0.8, v)),  # Complementary accent
+        'neutral_light': '#F8F9FA',
+        'neutral_dark': '#6C757D'
+    }
+    
+    return alternating_system
+
+def apply_alternating_section_colors(elementor_data: dict, style_description: str) -> dict:
+    """
+    Apply alternating section colors to Elementor data:
+    - Odd sections get very light primary color background
+    - Even sections get no background
+    - Text colors are adjusted for optimal contrast
+    """
+    color_system = create_smart_alternating_color_system(style_description)
+    
+    def process_section(section_data: dict, section_index: int) -> dict:
+        """Process a single section with alternating colors"""
+        if not isinstance(section_data, dict):
+            return section_data
+        
+        # Determine if this is an odd or even section
+        is_odd_section = section_index % 2 == 0  # 0-indexed, so 0,2,4... are odd
+        
+        # Apply background color based on section position
+        if 'settings' in section_data:
+            if is_odd_section:
+                # Odd section: Apply very light primary color background
+                section_data['settings']['background_color'] = color_system['odd_section_background']
+                section_data['settings']['background_overlay_color'] = color_system['odd_section_background']
+            else:
+                # Even section: No background color (transparent/white)
+                if 'background_color' in section_data['settings']:
+                    del section_data['settings']['background_color']
+                if 'background_overlay_color' in section_data['settings']:
+                    del section_data['settings']['background_overlay_color']
+        
+        # Process child elements (columns, widgets)
+        if 'elements' in section_data:
+            for element in section_data['elements']:
+                element = process_element(element, is_odd_section, color_system)
+        
+        return section_data
+    
+    def process_element(element_data: dict, parent_is_odd: bool, color_system: dict) -> dict:
+        """Process individual elements with appropriate colors"""
+        if not isinstance(element_data, dict):
+            return element_data
+        
+        # Process widget settings for text colors
+        if 'settings' in element_data:
+            settings = element_data['settings']
+            
+            # Apply text colors based on parent section background
+            if parent_is_odd:
+                # Text on light background should be dark
+                if 'title_color' in settings:
+                    settings['title_color'] = color_system['text_on_light_bg']
+                if 'color' in settings:
+                    settings['color'] = color_system['text_on_light_bg']
+                if 'text_color' in settings:
+                    settings['text_color'] = color_system['text_on_light_bg']
+                if 'heading_color' in settings:
+                    settings['heading_color'] = color_system['text_on_light_bg']
+            else:
+                # Text on white background can use primary color for headings
+                if 'title_color' in settings:
+                    settings['title_color'] = color_system['primary_color']
+                if 'heading_color' in settings:
+                    settings['heading_color'] = color_system['primary_color']
+                # Body text stays dark for readability
+                if 'color' in settings:
+                    settings['color'] = color_system['text_on_light_bg']
+                if 'text_color' in settings:
+                    settings['text_color'] = color_system['text_on_light_bg']
+            
+            # Apply accent colors for interactive elements
+            if 'button_background_color' in settings:
+                settings['button_background_color'] = color_system['primary_color']
+            if 'button_text_color' in settings:
+                settings['button_text_color'] = color_system['text_on_primary_bg']
+            if 'link_color' in settings:
+                settings['link_color'] = color_system['primary_color']
+            if 'icon_color' in settings:
+                settings['icon_color'] = color_system['accent_color']
+        
+        # Process child elements recursively
+        if 'elements' in element_data:
+            for child in element_data['elements']:
+                child = process_element(child, parent_is_odd, color_system)
+        
+        return element_data
+    
+    # Process all sections with alternating colors
+    if 'elements' in elementor_data:
+        for i, section in enumerate(elementor_data['elements']):
+            elementor_data['elements'][i] = process_section(section, i)
+    
+    return elementor_data
+
+def generate_smart_color_palette(style_description: str) -> Dict[str, Any]:
+    """
+    Generate a smart color palette for the alternating section system
+    """
+    primary_color = extract_color_from_description(style_description)
+    h, s, v = colorsys.rgb_to_hsv(*[x/255.0 for x in primary_color])
+    
+    # Create very light version of primary color
+    very_light_primary = hsv_to_rgb(h, s * 0.1, 0.98)
+    
+    # Generate complementary accent color
+    accent_color = hsv_to_rgb((h + 0.16) % 1, s * 0.8, v)
+    
+    palette = {
+        'primary': primary_color,
+        'primary_light': very_light_primary,
+        'accent': accent_color,
+        'text_dark': (51, 51, 51),  # #333333
+        'text_light': (255, 255, 255),  # #FFFFFF
+        'neutral_light': (248, 249, 250),  # #F8F9FA
+        'neutral_dark': (108, 117, 125),  # #6C757D
+        'white': (255, 255, 255),
+        'black': (0, 0, 0)
+    }
+    
+    return palette
+
+def create_smart_elementor_mapping(style_description: str) -> Dict[str, str]:
+    """
+    Create a smart Elementor color mapping for the alternating system
+    """
+    palette = generate_smart_color_palette(style_description)
+    hex_palette = {key: rgb_to_hex(value) for key, value in palette.items()}
+    
+    # Smart mapping that considers section context
+    mapping = {
+        # Section backgrounds - will be applied based on section position
+        'background_color': hex_palette['primary_light'],  # For odd sections
+        'background_overlay_color': hex_palette['primary_light'],
+        
+        # Text colors - will be adjusted based on background
+        'title_color': hex_palette['text_dark'],
+        'heading_color': hex_palette['primary'],
+        'color': hex_palette['text_dark'],
+        'text_color': hex_palette['text_dark'],
+        'color_text': hex_palette['text_dark'],
+        
+        # Interactive elements
+        'button_background_color': hex_palette['primary'],
+        'button_text_color': hex_palette['text_light'],
+        'button_hover_background_color': hex_palette['accent'],
+        'link_color': hex_palette['primary'],
+        'link_hover_color': hex_palette['accent'],
+        
+        # Icons and accents
+        'icon_color': hex_palette['accent'],
+        'icon_hover_color': hex_palette['primary'],
+        
+        # Borders and separators
+        'border_color': hex_palette['neutral_dark'],
+        'border_hover_color': hex_palette['primary'],
+        
+        # Form elements
+        'field_background_color': hex_palette['white'],
+        'field_border_color': hex_palette['neutral_dark'],
+        'field_text_color': hex_palette['text_dark'],
+        'field_focus_border_color': hex_palette['primary']
+    }
+    
+    return mapping
 
 def create_color_mapping(original_colors: List[str], style_description: str) -> Dict[str, str]:
     """Create a mapping from original colors to new palette colors using GPT-4o if available"""
