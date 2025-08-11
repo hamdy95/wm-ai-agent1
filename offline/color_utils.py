@@ -417,7 +417,7 @@ def create_smart_alternating_color_system(style_description: str) -> Dict[str, A
     
     return alternating_system
 
-def apply_alternating_section_colors(elementor_data: dict, style_description: str) -> dict:
+def apply_alternating_section_colors(elementor_data: Any, style_description: str) -> Any:
     """
     Apply alternating section colors to Elementor data:
     - Odd sections get very light primary color background
@@ -503,11 +503,20 @@ def apply_alternating_section_colors(elementor_data: dict, style_description: st
         
         return element_data
     
-    # Process all sections with alternating colors
-    if 'elements' in elementor_data:
+    # Process top-level structures
+    # Elementor export usually stores page content as a LIST of sections
+    if isinstance(elementor_data, list):
+        for i, section in enumerate(elementor_data):
+            elementor_data[i] = process_section(section, i)
+        return elementor_data
+
+    # Some templates wrap sections under an 'elements' key
+    if isinstance(elementor_data, dict) and 'elements' in elementor_data:
         for i, section in enumerate(elementor_data['elements']):
             elementor_data['elements'][i] = process_section(section, i)
-    
+        return elementor_data
+
+    # If structure is unexpected, return as-is
     return elementor_data
 
 def generate_smart_color_palette(style_description: str) -> Dict[str, Any]:
