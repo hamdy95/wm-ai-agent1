@@ -36,6 +36,16 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Simple agent-aware logger for terminal visibility
+def agent_log(agent: str, message: str) -> None:
+    try:
+        ts = datetime.utcnow().isoformat()
+        line = f"[{ts}] [{agent}] {message}"
+        logging.info(line)
+    finally:
+        # Always print to ensure visibility in terminal
+        print(line)
+
 # Handle imports differently based on how script is run
 try:
     # When imported as a module
@@ -45,6 +55,7 @@ try:
     from offline.multipage_agent import MultiPageSiteGenerator
     from offline.evaluator_agent import SectionEvaluator
     from offline.color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, generate_color_palette_with_gpt4o
+    from offline.image_agent import get_image_for_element as get_image_suggestion
 except ImportError:
     # When run directly
     from agentoff import FixedElementorExtractor
@@ -53,6 +64,10 @@ except ImportError:
     from multipage_agent import MultiPageSiteGenerator
     from evaluator_agent import SectionEvaluator
     from color_utils import extract_color_from_description, generate_color_palette, map_colors_to_elementor, create_color_mapping, generate_color_palette_with_gpt4o
+    try:
+        from image_agent import get_image_for_element as get_image_suggestion
+    except ImportError:
+        get_image_suggestion = None
 
 # Define response models
 class TransformationResponse(BaseModel):
@@ -72,6 +87,12 @@ class JobStatus(BaseModel):
 # Google Places OnePage request model - simplified to one parameter
 class GoogleOnePageRequest(BaseModel):
     google_data: dict = Field(..., description="Full Google Places API result JSON with optional style_description and replace_images")
+
+# New AI-native one page request model
+class AIOnePageRequest(BaseModel):
+    style_description: str = Field(..., description="Overall brand/style description to plan and generate sections")
+    google_data: Optional[dict] = Field(None, description="Optional Google Places/GBP data; if provided, business info is preserved exactly")
+    replace_images: Optional[bool] = False
 
 # Google Business Profile object model
 class GoogleBusinessProfile(BaseModel):
@@ -219,6 +240,334 @@ class ThemeTransformerOrchestrator:
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
+
+    # --- AI-native one-page generator helpers ---
+    def _ai_strip_code_fences(self, text: str) -> str:
+        if not text:
+            return ""
+        text = re.sub(r'^```(json)?', '', text.strip())
+        text = re.sub(r'```$', '', text.strip())
+        return text.strip()
+
+    def _ai_parse_json(self, text: str) -> Any:
+        try:
+            clean = self._ai_strip_code_fences(text)
+            return json.loads(clean)
+        except Exception:
+            # Try to extract JSON object via regex
+            match = re.search(r'\{[\s\S]*\}', text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except Exception:
+                    pass
+            # Try to extract list as well
+            match = re.search(r'\[[\s\S]*\]', text)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except Exception:
+                    pass
+            raise ValueError("Failed to parse JSON from AI response")
+
+    def _ai_get_text(self, resp: Any) -> str:
+        # Defensive extraction of text from Gemini SDK response
+        try:
+            txt = getattr(resp, 'text', None)
+            if txt:
+                return txt
+        except Exception:
+            pass
+        try:
+            candidates = getattr(resp, 'candidates', None)
+            if candidates:
+                for cand in candidates:
+                    try:
+                        content = getattr(cand, 'content', None)
+                        parts = getattr(content, 'parts', None) if content else None
+                        if parts:
+                            combined = ''.join([getattr(p, 'text', '') for p in parts if getattr(p, 'text', None)])
+                            if combined.strip():
+                                return combined
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        # Fallback to string form
+        return str(resp)
+
+    def _summarize_business_info(self, business_info: Optional[dict]) -> Optional[dict]:
+        if not business_info:
+            return None
+        summary = {
+            'business_name': business_info.get('business_name', ''),
+            'address': business_info.get('address', ''),
+            'phone': business_info.get('phone', ''),
+            'website': business_info.get('website', ''),
+            'rating': business_info.get('rating', 0),
+            'total_reviews': business_info.get('total_reviews', 0),
+            'opening_hours': {
+                'weekday_text': (business_info.get('opening_hours', {}) or {}).get('weekday_text', [])[:7]
+            }
+        }
+        # Limit reviews/photos to keep prompt small
+        reviews = business_info.get('reviews', []) or []
+        limited_reviews = []
+        for r in reviews[:3]:
+            limited_reviews.append({
+                'author_name': r.get('author_name', ''),
+                'rating': r.get('rating', 0),
+                'text': (r.get('text', '') or '')[:400]
+            })
+        photos = business_info.get('photos', []) or []
+        limited_photos = []
+        for p in photos[:3]:
+            ref = p.get('photo_reference') or ''
+            if ref:
+                limited_photos.append({'photo_reference': ref[:80]})
+        if limited_reviews:
+            summary['reviews'] = limited_reviews
+        if limited_photos:
+            summary['photos'] = limited_photos
+        return summary
+
+    def _ai_generate_plan(self, style_description: str, business_info: Optional[dict]) -> List[dict]:
+        # Lazy import Gemini
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            raise RuntimeError("google-generativeai is not installed. Please `pip install google-generativeai`.")
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            raise RuntimeError("GOOGLE_API_KEY not set in environment")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.5-pro")
+
+        preserve = "" if not business_info else (
+            "Preserve exactly (do not rewrite): business name, address, phone, website, hours and reviews. Use them verbatim in content.\n"
+        )
+        summarized = self._summarize_business_info(business_info)
+        user_prompt = f"""
+You are a senior web UX planner. Plan an Elementor one-page site from this style description:
+"""
+        user_prompt += style_description + "\n\n"
+        if summarized:
+            user_prompt += "Business information to preserve and use:\n" + json.dumps(summarized, ensure_ascii=False, indent=2) + "\n\n"
+        user_prompt += (
+            "Return ONLY valid JSON (no commentary). Schema:\n"
+            "{\n  \"sections\": [\n    {\n      \"id\": \"string\",\n      \"type\": \"hero|about|services|testimonials|faq|contact|cta|portfolio|team|features|footer\",\n      \"goal\": \"short purpose\",\n      \"components\": [\"heading\", \"subheading\", \"text\", \"button\", \"image\", \"list\"],\n      \"image_context\": \"what to show if an image is needed\",\n      \"tone\": \"tone of voice\"\n    }\n  ]\n}\n"
+            f"{preserve}Plan 5-8 sections appropriate for the brief."
+        )
+        agent_log('Planner', 'Sending planning prompt to Gemini')
+        resp = model.generate_content(user_prompt)
+        text = self._ai_get_text(resp)
+        agent_log('Planner', f'Received plan text length: {len(text)}')
+        try:
+            _preview = (text or '')[:300].replace('\n', ' ')
+        except Exception:
+            _preview = ''
+        agent_log('Planner', f'Plan preview: {_preview}...')
+        plan = self._ai_parse_json(text)
+        if not isinstance(plan, dict) or 'sections' not in plan:
+            raise ValueError("AI plan did not include 'sections'")
+        return plan['sections']
+
+    def _ai_generate_section_data(self, section_spec: dict, style_description: str, business_info: Optional[dict]) -> dict:
+        try:
+            import google.generativeai as genai
+        except ImportError:
+            raise RuntimeError("google-generativeai is not installed. Please `pip install google-generativeai`.")
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if not api_key:
+            raise RuntimeError("GOOGLE_API_KEY not set in environment")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.5-pro")
+
+        preserve = "" if not business_info else (
+            "Preserve exactly: business name, address, phone, website, opening hours and reviews text/names/ratings.\n"
+        )
+        schema_hint = (
+            "Return ONLY valid JSON with this exact structure for Elementor section_data (no commentary):\n"
+            "{\n  \"id\": \"string\",\n  \"elType\": \"section\",\n  \"settings\": { },\n  \"elements\": [\n    {\n      \"id\": \"string\",\n      \"elType\": \"column\",\n      \"settings\": {\"_column_size\": 100},\n      \"elements\": [ ]\n    }\n  ]\n}\n"
+        )
+        content_guidance = (
+            "Widgets to use: heading, text-editor, image, button, list, icon-list, spacer.\n"
+            "Keep JSON concise and valid. Fill text fields with on-brief content. If a CTA exists, add a button.\n"
+        )
+        summarized = self._summarize_business_info(business_info)
+        business_block = ("Business info:\n" + json.dumps(summarized, ensure_ascii=False)) if summarized else ""
+        prompt = f"""
+Generate Elementor section_data JSON for this section spec:
+{json.dumps(section_spec, ensure_ascii=False)}
+
+Style description:
+{style_description}
+
+{business_block}
+{preserve}
+{schema_hint}
+{content_guidance}
+"""
+        agent_log('SectionGen', f"Generating section '{section_spec.get('type','section')}'")
+        resp = model.generate_content(prompt)
+        text = self._ai_get_text(resp)
+        agent_log('SectionGen', f"Response length for '{section_spec.get('type','section')}': {len(text)}")
+        try:
+            _s_preview = (text or '')[:200].replace('\n', ' ')
+        except Exception:
+            _s_preview = ''
+        agent_log('SectionGen', f"Response preview: {_s_preview}...")
+        data = self._ai_parse_json(text)
+        # Basic validation
+        if not isinstance(data, dict) or data.get('elType') != 'section' or 'elements' not in data:
+            raise ValueError("Generated section_data is invalid")
+        return data
+
+    def generate_ai_one_page_site(self, job_id: str, style_description: str, replace_images: bool = False, google_data: Optional[dict] = None):
+        """AI-native flow: plan sections with Gemini, generate Elementor JSON, optionally store, assemble WXR, output XML"""
+        work_dir = os.path.join(self.base_dir, "processing", job_id)
+        os.makedirs(work_dir, exist_ok=True)
+        try:
+            self.jobs[job_id]["status"] = "processing"
+            agent_log('AI-OnePage', f'Start job {job_id}')
+
+            # Prepare business info from google_data if provided
+            business_info = None
+            if google_data:
+                try:
+                    business_info = process_gbp_object(google_data)
+                    self.jobs[job_id]["business_info"] = business_info
+                    agent_log('AI-OnePage', f"Processed google_data for business: {business_info.get('business_name','N/A')}")
+                except Exception as e:
+                    agent_log('AI-OnePage', f"Failed to process google_data: {e}")
+
+            # 1) Plan sections
+            sections_plan = self._ai_generate_plan(style_description, business_info)
+            agent_log('AI-OnePage', f"Planned {len(sections_plan)} sections: {[s.get('type') for s in sections_plan]}")
+
+            # 2) Generate section_data for each plan entry
+            elementor_sections: List[dict] = []
+            for spec in sections_plan:
+                try:
+                    section_json = self._ai_generate_section_data(spec, style_description, business_info)
+                    # Optional image enhancement
+                    if replace_images and get_image_suggestion:
+                        image_url = get_image_suggestion(style_description=style_description, element_context=spec.get('type', 'section'), element_type='image_widget')
+                        if image_url and isinstance(section_json, dict):
+                            try:
+                                col = None
+                                for el in section_json.get('elements', []):
+                                    if el.get('elType') == 'column':
+                                        col = el
+                                        break
+                                if col is not None:
+                                    widgets = col.setdefault('elements', [])
+                                    widgets.append({
+                                        'id': str(uuid.uuid4())[:8],
+                                        'elType': 'widget',
+                                        'widgetType': 'image',
+                                        'settings': { 'image': { 'url': image_url, 'id': '' } },
+                                        'elements': []
+                                    })
+                            except Exception:
+                                pass
+                    elementor_sections.append(section_json)
+                except Exception as e:
+                    agent_log('AI-OnePage', f"Failed to generate section for spec {spec.get('type')}: {e}")
+                    continue
+
+            if not elementor_sections:
+                raise ValueError("No sections were generated by the AI")
+            agent_log('AI-OnePage', f'Generated {len(elementor_sections)} sections')
+
+            # 3) Optionally store each section in DB (best-effort)
+            try:
+                supabase_url = os.getenv('SUPABASE_URL')
+                supabase_key = os.getenv('SUPABASE_KEY')
+                if supabase_url and supabase_key:
+                    supabase = create_client(supabase_url, supabase_key)
+                    for sec in elementor_sections:
+                        section_record = {
+                            'id': str(uuid.uuid4()),
+                            'theme_id': None,
+                            'category': 'ai_generated',
+                            'content': json.dumps({ 'section_data': sec }, ensure_ascii=False)
+                        }
+                        try:
+                            supabase.table('sections').insert(section_record).execute()
+                        except Exception as e:
+                            agent_log('AI-OnePage', f"Warning: failed to store generated section: {e}")
+            except Exception as e:
+                agent_log('AI-OnePage', f"Warning: Supabase storage unavailable: {e}")
+
+            # 4) Assemble WXR using OnePageSiteGenerator base
+            generator = self.onepage_generator
+            agent_log('AI-OnePage', 'Assembling WordPress XML (WXR)')
+            rss = generator.create_base_template()
+            channel = rss.find('channel')
+            item = ET.SubElement(channel, 'item')
+            title = ET.SubElement(item, 'title'); title.text = 'Home'
+            link = ET.SubElement(item, 'link'); link.text = 'https://example.com/'
+            pubDate = ET.SubElement(item, 'pubDate'); pubDate.text = datetime.now().strftime('%a, %d %b %Y %H:%M:%S +0000')
+            creator = ET.SubElement(item, '{http://purl.org/dc/elements/1.1/}creator'); creator.text = 'admin'
+            guid = ET.SubElement(item, 'guid'); guid.set('isPermaLink', 'false'); guid.text = f'https://example.com/?page_id=1'
+            description = ET.SubElement(item, 'description'); description.text = ''
+            content = ET.SubElement(item, '{http://purl.org/rss/1.0/modules/content/}encoded'); content.text = ''
+            excerpt = ET.SubElement(item, '{http://wordpress.org/export/1.2/excerpt/}encoded'); excerpt.text = ''
+            post_id = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_id'); post_id.text = '1'
+            post_date = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_date'); post_date.text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            post_date_gmt = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_date_gmt'); post_date_gmt.text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            comment_status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}comment_status'); comment_status.text = 'closed'
+            ping_status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}ping_status'); ping_status.text = 'closed'
+            post_name = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_name'); post_name.text = 'home'
+            status = ET.SubElement(item, '{http://wordpress.org/export/1.2/}status'); status.text = 'publish'
+            post_parent = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_parent'); post_parent.text = '0'
+            menu_order = ET.SubElement(item, '{http://wordpress.org/export/1.2/}menu_order'); menu_order.text = '0'
+            post_type = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_type'); post_type.text = 'page'
+            post_password = ET.SubElement(item, '{http://wordpress.org/export/1.2/}post_password'); post_password.text = ''
+            is_sticky = ET.SubElement(item, '{http://wordpress.org/export/1.2/}is_sticky'); is_sticky.text = '0'
+            # Elementor meta
+            meta_elementor = ET.SubElement(item, '{http://wordpress.org/export/1.2/}postmeta')
+            meta_key = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_key'); meta_key.text = '_elementor_data'
+            meta_value = ET.SubElement(meta_elementor, '{http://wordpress.org/export/1.2/}meta_value')
+            meta_value.text = json.dumps(elementor_sections, ensure_ascii=False, separators=(',', ':'))
+            # Elementor edit mode
+            meta_edit_mode = ET.SubElement(item, '{http://wordpress.org/export/1.2/}postmeta')
+            meta_key = ET.SubElement(meta_edit_mode, '{http://wordpress.org/export/1.2/}meta_key'); meta_key.text = '_elementor_edit_mode'
+            meta_value = ET.SubElement(meta_edit_mode, '{http://wordpress.org/export/1.2/}meta_value'); meta_value.text = 'builder'
+
+            output_path = os.path.join(self.base_dir, "output", f"{job_id}.xml")
+            # Write file
+            tree = ET.ElementTree(rss)
+            with open(output_path, 'wb') as f:
+                f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+                tree.write(f, encoding='UTF-8', xml_declaration=False)
+            # Validate
+            ET.parse(output_path)
+            agent_log('AI-OnePage', f'Wrote XML to {output_path}')
+
+            self.jobs[job_id].update({
+                "status": "completed",
+                "completed_at": datetime.utcnow().isoformat(),
+                "output_url": f"/download/{job_id}",
+                "output_path": output_path,
+                "type": "ai_onepage",
+                "business_info": business_info or {}
+            })
+            agent_log('AI-OnePage', f'Job {job_id} completed')
+        except Exception as e:
+            agent_log('AI-OnePage', f"Error: {e}")
+            traceback.print_exc()
+            self.jobs[job_id].update({
+                "status": "failed",
+                "completed_at": datetime.utcnow().isoformat(),
+                "error": str(e)
+            })
+        finally:
+            try:
+                shutil.rmtree(work_dir)
+            except Exception:
+                pass
 
     def validate_xml(self, file_path: str) -> bool:
         """Validate XML file structure"""
@@ -1188,6 +1537,40 @@ async def generate_google_onepage(
             status='queued',
             created_at=created_at,
             message='Google one-page site generation started'
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate/ai-onepage")
+async def generate_ai_onepage(
+    request: AIOnePageRequest,
+    background_tasks: BackgroundTasks
+):
+    """AI-native one-page site generation (Planner + Section Generator)"""
+    try:
+        job_id = str(uuid.uuid4())
+        created_at = datetime.utcnow().isoformat()
+        orchestrator.jobs[job_id] = {
+            'id': job_id,
+            'status': 'queued',
+            'created_at': created_at,
+            'type': 'ai_onepage',
+            'style_description': request.style_description,
+            'replace_images': request.replace_images,
+            'gbp_object': request.google_data
+        }
+        background_tasks.add_task(
+            orchestrator.generate_ai_one_page_site,
+            job_id,
+            request.style_description,
+            request.replace_images,
+            request.google_data
+        )
+        return TransformationResponse(
+            job_id=job_id,
+            status='queued',
+            created_at=created_at,
+            message='AI one-page generation started'
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
