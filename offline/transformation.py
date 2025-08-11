@@ -116,39 +116,42 @@ def extract_business_info_from_gbp(gbp_data: str) -> Optional[Dict]:
         return None
 
 def format_business_info_for_prompt(business_info: Dict) -> str:
-    """
-    Format business information into a structured prompt for GPT.
-    """
+    """Format business information into a structured prompt for GPT."""
     if not business_info:
         return ""
-    
-    formatted_info = []
-    
+
+    formatted_info: List[str] = []
+
     # Basic business information
-    if business_info.get("business_name"):
-        formatted_info.append(f"Business Name: {business_info['business_name']}")
-    
-    if business_info.get("address"):
-        formatted_info.append(f"Address: {business_info['address']}")
-    
-    if business_info.get("phone"):
-        formatted_info.append(f"Phone: {business_info['phone']}")
-    
-    if business_info.get("international_phone"):
-        formatted_info.append(f"International Phone: {business_info['international_phone']}")
-    
-    if business_info.get("website"):
-        formatted_info.append(f"Website: {business_info['website']}")
-    
-    if business_info.get("rating"):
-        formatted_info.append(f"Rating: {business_info['rating']} stars from {business_info.get('total_reviews', 0)} reviews")
-    
+    name = business_info.get("business_name")
+    if name:
+        formatted_info.append(f"Business Name: {name}")
+
+    address = business_info.get("address")
+    if address:
+        formatted_info.append(f"Address: {address}")
+
+    phone = business_info.get("phone")
+    if phone:
+        formatted_info.append(f"Phone: {phone}")
+
+    intl_phone = business_info.get("international_phone")
+    if intl_phone:
+        formatted_info.append(f"International Phone: {intl_phone}")
+
+    website = business_info.get("website")
+    if website:
+        formatted_info.append(f"Website: {website}")
+
+    rating = business_info.get("rating")
+    if rating:
+        formatted_info.append(f"Rating: {rating} stars from {business_info.get('total_reviews', 0)} reviews")
+
     # Opening hours
-    opening_hours = business_info.get("opening_hours", {})
+    opening_hours = business_info.get("opening_hours", {}) or {}
     if opening_hours:
-        weekday_text = opening_hours.get("weekday_text", [])
-        current_weekday_text = opening_hours.get("current_weekday_text", [])
-        
+        weekday_text = opening_hours.get("weekday_text", []) or []
+        current_weekday_text = opening_hours.get("current_weekday_text", []) or []
         if weekday_text:
             formatted_info.append("Opening Hours:")
             for day in weekday_text:
@@ -157,29 +160,30 @@ def format_business_info_for_prompt(business_info: Dict) -> str:
             formatted_info.append("Opening Hours:")
             for day in current_weekday_text:
                 formatted_info.append(f"  {day}")
-    
+
     # Reviews
-    reviews = business_info.get("reviews", [])
+    reviews = business_info.get("reviews", []) or []
     if reviews:
         formatted_info.append("Customer Reviews:")
-        for i, review in enumerate(reviews[:5]):  # Show first 5 reviews
+        for review in reviews[:5]:  # Show first 5 reviews
             author = review.get("author_name", "Anonymous")
-            text = review.get("text", "").strip()
+            text = (review.get("text", "") or "").strip()
             rating = review.get("rating", 0)
             time_desc = review.get("relative_time_description", "")
-            
-            if text:  # Only include reviews with text
+            if text:
                 formatted_info.append(f"  {author} ({rating} stars, {time_desc}): '{text}'")
             else:
                 formatted_info.append(f"  {author} ({rating} stars, {time_desc}): Rating only")
-    
+
     # Business details
-    if business_info.get("business_status"):
-        formatted_info.append(f"Status: {business_info['business_status']}")
-    
-    if business_info.get("vicinity"):
-        formatted_info.append(f"Location: {business_info['vicinity']}")
-    
+    status = business_info.get("business_status")
+    if status:
+        formatted_info.append(f"Status: {status}")
+
+    vicinity = business_info.get("vicinity")
+    if vicinity:
+        formatted_info.append(f"Location: {vicinity}")
+
     return "\n".join(formatted_info)
 
 class ContentTransformationAgent:
@@ -478,11 +482,6 @@ class ContentTransformationAgent:
         except Exception as e:
             print(f"Error transforming post content: {e}")
             return content
-            
-        except Exception as e:
-            print(f"Error transforming content: {e}")
-            traceback.print_exc()
-            raise
 
     def _extract_texts_from_content(self, content: str) -> List[str]:
         """Extract text content from HTML/XML content"""
@@ -606,7 +605,7 @@ class ContentTransformationAgent:
                 # Prepare the system message based on whether we have business info
                 if business_info and business_prompt:
                     system_content = (
-                        "You are a professional content transformer for a WordPress theme. "
+                    "You are a professional content transformer for a WordPress theme. "
                         "IMPORTANT: The following business information must be preserved exactly as provided and used in the content:\n\n"
                         f"{business_prompt}\n\n"
                         "When transforming content, use this business information to create relevant, accurate content. "
