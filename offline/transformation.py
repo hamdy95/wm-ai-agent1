@@ -611,6 +611,7 @@ class ContentTransformationAgent:
                         "When transforming content, use this business information to create relevant, accurate content. "
                         "For reviews, use the exact reviewer names, ratings, and text provided. "
                         "For business details, use the exact name, address, phone, website, and hours provided. "
+                        "If the user ask to make his content in specific language you must transform all the content into this language and also if he write his style description in specific language you must take it as the transformation language for ex if he write in arabic so all transformation must be in arabic and so on. "
                         "Transform each text to match the requested style while:\n"
                         "1. Always generate new, meaningful content that incorporates the provided business information.\n"
                         "2. If the text is lorem ipsum, placeholder, or dummy text, replace it with real content about this specific business.\n"
