@@ -1017,11 +1017,11 @@ Style description:
                 self.jobs[job_id]["gbp_object"] = gbp_object
             
             temp_output_path = os.path.join(work_dir, "multipage_temp.xml")
-            combined_query = query
-            if style_description and style_description.strip():
-                combined_query = f"{query} with {style_description}"
+            # IMPORTANT: Only use the user's query to select pages. Do NOT mix in style or GBP data.
+            combined_query = query  # kept for backward-compatible debug fields below
             try:
-                self.multipage_generator.create_multi_page_site(combined_query, temp_output_path, style_description)
+                # Pass only the original query for page selection; provide style separately for styling/colors
+                self.multipage_generator.create_multi_page_site(query, temp_output_path, style_description)
             except Exception as e:
                 raise ValueError(f"Error generating multi-page site: {str(e)}")
             if not self.validate_xml(temp_output_path):
@@ -1035,12 +1035,12 @@ Style description:
                 raise ValueError(f"XML parsing error in {debug_path}: {str(e)}")
             except Exception as e:
                 raise ValueError(f"Error during extraction: {str(e)}")
-            print(f"Applying style: {combined_query}...")
+            print(f"Applying style: {style_description}...")
             
             # Combine style description with preservation prompt if GBP object is provided
-            final_style_description = combined_query
+            final_style_description = style_description or ""
             if preservation_prompt:
-                final_style_description = f"{combined_query}\n\n{preservation_prompt}"
+                final_style_description = f"{final_style_description}\n\n{preservation_prompt}".strip()
                 print("Applied GBP preservation instructions to transformation")
             
             transformation_result = self.transformation_agent.transform_theme_content(theme_id, final_style_description)
