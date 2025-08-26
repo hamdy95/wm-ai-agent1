@@ -928,7 +928,12 @@ Style description:
                 final_style_description = f"{combined_query}\n\n{preservation_prompt}"
                 print("Applied GBP preservation instructions to transformation")
             
-            transformation_result = self.transformation_agent.transform_theme_content(theme_id, final_style_description)
+            transformation_result = self.transformation_agent.transform_theme_content(
+                theme_id,
+                final_style_description,
+                filtered_pages=pages_data,
+                filtered_sections=sections_data
+            )
             if 'text_transformations' not in transformation_result:
                 transformation_result['text_transformations'] = []
             if 'color_palette' not in transformation_result:
@@ -1043,7 +1048,12 @@ Style description:
                 final_style_description = f"{final_style_description}\n\n{preservation_prompt}".strip()
                 print("Applied GBP preservation instructions to transformation")
             
-            transformation_result = self.transformation_agent.transform_theme_content(theme_id, final_style_description)
+            transformation_result = self.transformation_agent.transform_theme_content(
+                theme_id,
+                final_style_description,
+                filtered_pages=pages_data,
+                filtered_sections=sections_data
+            )
             if 'text_transformations' not in transformation_result:
                 transformation_result['text_transformations'] = []
             if 'color_palette' not in transformation_result:
@@ -1094,7 +1104,8 @@ Style description:
                 "status": "completed",
                 "completed_at": datetime.utcnow().isoformat(),
                 "output_url": f"/download/{job_id}",
-                "job_type": "multi_page_site"
+                "job_type": "multi_page_site",
+                "output_path": output_path
             })
             # Save the palette and mapping in the transformation_result for later use
             if hasattr(self.multipage_generator, 'generated_palette') and hasattr(self.multipage_generator, 'generated_mapping'):
